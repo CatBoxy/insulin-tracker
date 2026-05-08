@@ -7,6 +7,20 @@ function getSecret() {
   return new TextEncoder().encode(s);
 }
 
+function buildRedirectUrl(request: NextRequest, pathname: string): URL {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (forwardedHost) {
+    const [hostname, port] = forwardedHost.split(":");
+    url.hostname = hostname;
+    url.port = port || "";
+  }
+  const proto = request.headers.get("x-forwarded-proto");
+  if (proto) url.protocol = proto + ":";
+  return url;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -18,9 +32,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   if (!token) {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(buildRedirectUrl(request, "/login"));
   }
 
   try {
@@ -29,41 +41,31 @@ export async function middleware(request: NextRequest) {
     // Redirect users to their role-specific dashboard
     if (pathname === "/dashboard" || pathname === "/") {
       if (payload.role === "doctor") {
-        const url = request.nextUrl.clone();
-        url.pathname = "/doctor";
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(buildRedirectUrl(request, "/doctor"));
       }
       if (payload.role === "admin") {
-        const url = request.nextUrl.clone();
-        url.pathname = "/admin";
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(buildRedirectUrl(request, "/admin"));
       }
     }
 
     if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
       if (payload.role !== "admin") {
         if (pathname.startsWith("/api/")) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-        const url = request.nextUrl.clone();
-        url.pathname = payload.role === "doctor" ? "/doctor" : "/dashboard";
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(buildRedirectUrl(request, payload.role === "doctor" ? "/doctor" : "/dashboard"));
       }
     }
 
     if (pathname.startsWith("/doctor") || pathname.startsWith("/api/doctor")) {
       if (payload.role !== "doctor" && payload.role !== "admin") {
         if (pathname.startsWith("/api/")) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
+        return NextResponse.redirect(buildRedirectUrl(request, "/dashboard"));
       }
     }
 
     return NextResponse.next();
   } catch {
     if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Token inválido" }, { status: 401 });
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    const response = NextResponse.redirect(url);
+    const response = NextResponse.redirect(buildRedirectUrl(request, "/login"));
     response.cookies.set("token", "", { maxAge: 0, path: "/" });
     return response;
   }
