@@ -1,16 +1,9 @@
 "use client";
-import { Suspense, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import PasswordInput from "@/components/PasswordInput";
 
-export default function RegisterPage() {
-  return <Suspense><RegisterContent /></Suspense>;
-}
-
-function RegisterContent() {
-  const searchParams = useSearchParams();
-  const doctorCode = searchParams.get("doctor");
+export default function DoctorRegisterPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -21,25 +14,17 @@ function RegisterContent() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [doctorName, setDoctorName] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d?.user) {
-          window.location.href = doctorCode ? `/dashboard?doctor=${doctorCode}` : "/dashboard";
+          window.location.href = d.user.role === "doctor" ? "/doctor" : "/dashboard";
         }
       })
       .catch(() => {});
-
-    if (doctorCode) {
-      fetch(`/api/doctors/by-code?code=${doctorCode}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(d => { if (d?.doctor) setDoctorName(d.doctor.name); })
-        .catch(() => {});
-    }
-  }, [doctorCode]);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,12 +46,12 @@ function RegisterContent() {
           phone: phone || undefined,
           date_of_birth: dateOfBirth || undefined,
           gender: gender || undefined,
-          doctorCode: doctorCode || undefined,
+          role: "doctor",
         }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al registrarse"); return; }
-      window.location.href = "/dashboard";
+      window.location.href = "/doctor";
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }
@@ -81,14 +66,8 @@ function RegisterContent() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-gray-800">Nivelo</h1>
-          <p className="text-gray-500 mt-1">Creá tu cuenta</p>
+          <p className="text-gray-500 mt-1">Registro de profesional</p>
         </div>
-
-        {doctorName && (
-          <div className="bg-primary-50 border border-primary-200 text-primary-700 p-3 rounded-xl text-sm mb-4 text-center">
-            Te vas a vincular con <span className="font-semibold">Dr. {doctorName}</span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
@@ -96,18 +75,18 @@ function RegisterContent() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
               <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="Juan" />
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="María" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
               <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="Pérez" />
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="García" />
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico *</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="tu@email.com" />
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="doctor@email.com" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
@@ -141,11 +120,11 @@ function RegisterContent() {
           </div>
           <button type="submit" disabled={loading}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
-            {loading ? "Creando cuenta..." : doctorCode ? "Registrarse y vincularse" : "Registrarse"}
+            {loading ? "Creando cuenta..." : "Registrarse como profesional"}
           </button>
         </form>
         <p className="text-center text-sm text-gray-500 mt-6">
-          Ya tenés cuenta? <Link href={`/login${doctorCode ? `?doctor=${doctorCode}` : ""}`} className="text-primary-600 font-medium hover:underline">Iniciar sesión</Link>
+          Ya tenés cuenta? <Link href="/login" className="text-primary-600 font-medium hover:underline">Iniciar sesión</Link>
         </p>
       </div>
     </div>

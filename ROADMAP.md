@@ -186,14 +186,14 @@ Collect more user information during registration.
 - Teléfono
 
 **Implementation:**
-- [ ] Migration: add `phone` column to users table
-- [ ] Update Zod registerSchema with new fields
-- [ ] Update auth.service.ts createPatientUser to save all fields
-- [ ] Update register page UI with new fields
+- [x] Migration: add `phone` column to users table
+- [x] Update Zod registerSchema with new fields (first_name, last_name, DOB, gender, phone, role)
+- [x] Update auth.service.ts with generic `createUser()` supporting patient/doctor roles
+- [x] Update register page UI with all new fields
 - [ ] Update admin create user form with new fields
-- [ ] Password eye toggle (show/hide) on all password fields (login, register, account)
-- [ ] Create `/register/doctor` page (same fields, creates doctor role) — not linked in UI, shared privately
-- [ ] Add `/register/doctor` to middleware public paths
+- [x] Password eye toggle (show/hide) component on login, register, doctor register
+- [x] Create `/register/doctor` page (same fields, creates doctor role) — not linked in UI
+- [x] `/register/doctor` covered by existing middleware public path
 
 ### 3.8 Account Page ("Mi Cuenta")
 

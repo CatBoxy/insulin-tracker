@@ -18,19 +18,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { email, password } = parsed.data;
+    const { email, password, first_name, last_name, date_of_birth, gender, phone, doctorCode, role } = parsed.data;
 
     if (await authService.emailExists(email)) {
       return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });
     }
 
-    const user = await authService.createPatientUser(email, password);
+    const user = await authService.createUser({
+      email, password, first_name, last_name,
+      date_of_birth, gender, phone,
+      role: role || "patient",
+    });
     const token = await authService.createToken(user);
 
-    // Auto-link to doctor if code provided
+    // Auto-link to doctor if code provided (only for patients)
     let linkedDoctor: string | null = null;
-    const doctorCode = body.doctorCode;
-    if (doctorCode) {
+    if (doctorCode && user.role === "patient") {
       const doctor = await getDoctorByCode(doctorCode);
       if (doctor) {
         const patientId = await resolvePatientId(user.id);
