@@ -191,6 +191,9 @@ Collect more user information during registration.
 - [ ] Update auth.service.ts createPatientUser to save all fields
 - [ ] Update register page UI with new fields
 - [ ] Update admin create user form with new fields
+- [ ] Password eye toggle (show/hide) on all password fields (login, register, account)
+- [ ] Create `/register/doctor` page (same fields, creates doctor role) — not linked in UI, shared privately
+- [ ] Add `/register/doctor` to middleware public paths
 
 ### 3.8 Account Page ("Mi Cuenta")
 
