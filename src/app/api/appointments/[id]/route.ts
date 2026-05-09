@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
 import { resolvePatientId } from "@/lib/patient-resolve";
+import { updateAppointmentSchema } from "@/lib/validation";
 import * as appointmentsService from "@/services/appointments.service";
 
 export async function PATCH(
@@ -37,7 +38,16 @@ export async function PATCH(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const updated = await appointmentsService.update(appointmentId, body);
+    if (doctorId && appt.doctor_id !== doctorId) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    const parsed = updateAppointmentSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const updated = await appointmentsService.update(appointmentId, parsed.data);
     if (!updated) return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
 
     return NextResponse.json({ ok: true });

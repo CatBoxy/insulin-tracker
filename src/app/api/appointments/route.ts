@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
 import { resolvePatientId } from "@/lib/patient-resolve";
+import { createAppointmentSchema } from "@/lib/validation";
 import * as appointmentsService from "@/services/appointments.service";
 
 export async function GET(request: NextRequest) {
@@ -39,10 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { patient_id, scheduled_at, duration_minutes, location, type, reason, notes } = body;
-
-    if (!patient_id || !scheduled_at) {
-      return NextResponse.json({ error: "Paciente y fecha requeridos" }, { status: 400 });
+    const parsed = createAppointmentSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
     const doctorId = await appointmentsService.getDoctorId(user.id);
@@ -50,20 +50,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No es doctor" }, { status: 403 });
     }
 
-    const hasAccess = await appointmentsService.verifyDoctorPatientAccess(doctorId, patient_id);
+    const hasAccess = await appointmentsService.verifyDoctorPatientAccess(doctorId, parsed.data.patient_id);
     if (!hasAccess) {
       return NextResponse.json({ error: "Sin acceso a este paciente" }, { status: 403 });
     }
 
     const appointment = await appointmentsService.create({
-      patientId: patient_id,
+      patientId: parsed.data.patient_id,
       doctorId,
-      scheduledAt: scheduled_at,
-      durationMinutes: duration_minutes,
-      location,
-      type,
-      reason,
-      notes,
+      scheduledAt: parsed.data.scheduled_at,
+      durationMinutes: parsed.data.duration_minutes,
+      location: parsed.data.location,
+      type: parsed.data.type,
+      reason: parsed.data.reason,
+      notes: parsed.data.notes,
     });
 
     return NextResponse.json({ appointment }, { status: 201 });

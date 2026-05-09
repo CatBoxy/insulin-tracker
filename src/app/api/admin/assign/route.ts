@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
+import { assignPatientSchema } from "@/lib/validation";
 import * as adminService from "@/services/admin.service";
 
 export async function POST(request: NextRequest) {
@@ -9,12 +10,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const { doctor_user_id, patient_id: rawPatientId } = await request.json();
-    if (!doctor_user_id || !rawPatientId) {
-      return NextResponse.json({ error: "doctor_user_id y patient_id requeridos" }, { status: 400 });
+    const body = await request.json();
+    const parsed = assignPatientSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const result = await adminService.assignPatientToDoctor(doctor_user_id, rawPatientId);
+    const result = await adminService.assignPatientToDoctor(parsed.data.doctor_user_id, parsed.data.patient_id);
 
     if (result === "reassigned") {
       return NextResponse.json({ message: "Reasignado" });
