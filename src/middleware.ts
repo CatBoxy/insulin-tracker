@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    if (pathname.startsWith("/doctor") || pathname.startsWith("/api/doctor")) {
+    if ((pathname.startsWith("/doctor") || pathname.startsWith("/api/doctor")) && !pathname.startsWith("/api/doctors/link") && !pathname.startsWith("/api/doctors/by-code")) {
       if (payload.role !== "doctor" && payload.role !== "admin") {
         if (pathname.startsWith("/api/")) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
         return NextResponse.redirect(buildRedirectUrl(request, "/dashboard"));
