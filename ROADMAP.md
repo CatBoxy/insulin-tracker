@@ -174,7 +174,71 @@ Review and fix responsive layout issues (overflow, spacing, placement).
 - [ ] Ensure touch targets are adequate (min 44px)
 - [ ] Test PWA standalone mode layout
 
-### 3.7 Android App (deferred)
+### 3.7 Enhanced Registration Form
+
+Collect more user information during registration.
+
+**Fields (patients and doctors):**
+- Nombre (required)
+- Apellido (required)
+- Fecha de nacimiento
+- Género
+- Teléfono
+
+**Implementation:**
+- [ ] Migration: add `phone` column to users table
+- [ ] Update Zod registerSchema with new fields
+- [ ] Update auth.service.ts createPatientUser to save all fields
+- [ ] Update register page UI with new fields
+- [ ] Update admin create user form with new fields
+
+### 3.8 Account Page ("Mi Cuenta")
+
+A dedicated account management page for all user roles.
+
+**Shared features (patients & doctors):**
+- View/edit personal info (nombre, apellido, fecha de nacimiento, género, teléfono, email)
+- Change password (current password + new password + confirm)
+- Navigation item in header to access account page
+
+**Patient-specific:**
+- List of linked doctors (name, email, linked since)
+- Ability to unlink from a doctor
+- "Exportar mis datos" button (links to PDF export in 3.5)
+
+**Doctor-specific:**
+- (No additional features for now)
+
+**Implementation:**
+- [ ] Create `/account` page with role-based sections
+- [ ] API endpoint: `PATCH /api/auth/account` — update personal info
+- [ ] API endpoint: `POST /api/auth/change-password` — change password
+- [ ] API endpoint: `GET /api/patient/doctors` — list linked doctors for patient
+- [ ] API endpoint: `DELETE /api/patient/doctors/[id]` — unlink from doctor
+- [ ] Add "Mi Cuenta" nav item to header on all pages
+- [ ] Zod schemas for account update and password change
+
+### 3.9 PWA Install Prompt
+
+Show an "Instalar app" button when the browser supports PWA installation.
+
+**Android/Desktop (Chrome):**
+- Intercept `beforeinstallprompt` event
+- Show install button in header or dashboard
+- Trigger native install prompt on click
+
+**iOS Safari fallback:**
+- Detect iOS Safari (no `beforeinstallprompt` support)
+- Show manual instructions: "Tocá el botón Compartir y luego 'Agregar a pantalla de inicio'"
+- Dismissible instruction banner
+
+**Implementation:**
+- [ ] Create PWA install hook/component (detect platform, manage prompt)
+- [ ] Install button in header (Android/desktop)
+- [ ] iOS instruction banner with dismiss (persisted in localStorage)
+- [ ] Hide button/banner once app is running in standalone mode
+
+### 3.10 Android App (deferred)
 
 PWA + QR approach is priority. Native Android app will be considered after PWA is stable and feature-complete. API-first architecture ensures the same backend serves both.
 
