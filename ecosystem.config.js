@@ -1,3 +1,5 @@
+// Non-secret config only. Secrets are in /home/deploy/apps/nivelo/.env on the server.
+// This file is NOT synced during deploy — the server copy is the source of truth.
 module.exports = {
   apps: [
     {
@@ -8,8 +10,6 @@ module.exports = {
         NODE_ENV: "production",
         PORT: 3008,
         HOSTNAME: "127.0.0.1",
-        DATABASE_URL: "postgresql://insulin_tracker:whdJFH760XtEdQAENCXShqMLMS3n42D0@localhost:5432/insulin_tracker",
-        JWT_SECRET: "znbnNSHQ3ug6L93ym+jXt1KSmT4/sTsYGvt4ktQMl1Y=",
       },
       instances: 1,
       exec_mode: "fork",

@@ -1,0 +1,65 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
+          REMOTE_USER: deploy
+          REMOTE_PORT: 2222
+          REMOTE_DIR: /home/deploy/apps/nivelo
+          SSH_CMD: ssh -i ~/.ssh/deploy_key -p 2222
+        run: |
+          # Sync standalone build
+          rsync -az --delete \
+            -e "${SSH_CMD}" \
+            .next/standalone/ \
+            ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
+
+          # Sync static assets
+          rsync -az --delete \
+            -e "${SSH_CMD}" \
+            .next/static/ \
+            ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/.next/static/
+
+          # Sync public directory
+          rsync -az --delete \
+            -e "${SSH_CMD}" \
+            public/ \
+            ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/public/
+
+          # Restart PM2 (ecosystem.config.js stays on server, not synced)
+          ${SSH_CMD} ${REMOTE_USER}@${REMOTE_HOST} '
+            export PATH=$PATH:/home/deploy/.local/share/pnpm
+            cd /home/deploy/apps/nivelo
+            pm2 restart nivelo || pm2 start ecosystem.config.js
+            pm2 save
+          '

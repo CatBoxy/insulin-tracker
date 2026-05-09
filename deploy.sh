@@ -24,17 +24,12 @@ rsync -az --delete \
   public/ \
   "${REMOTE_USER}@${REMOTE}:${REMOTE_DIR}/public/"
 
-echo "==> Syncing ecosystem config..."
-rsync -az \
-  ecosystem.config.js \
-  "${REMOTE_USER}@${REMOTE}:${REMOTE_DIR}/ecosystem.config.js"
-
 echo "==> Restarting PM2 process..."
+# Note: ecosystem.config.js lives on the server (has env secrets). Not synced from repo.
 ssh "${REMOTE}" "sudo su - ${REMOTE_USER} -c '
   export PATH=\$PATH:/home/${REMOTE_USER}/.local/share/pnpm
   cd ${REMOTE_DIR}
-  pm2 delete ${APP} 2>/dev/null || true
-  pm2 start ecosystem.config.js
+  pm2 restart ${APP} || pm2 start ecosystem.config.js
   pm2 save
 '"
 
