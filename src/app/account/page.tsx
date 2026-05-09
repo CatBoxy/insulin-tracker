@@ -156,17 +156,6 @@ export default function AccountPage() {
     finally { setPwLoading(false); }
   }
 
-  async function handleUnlink(assignmentId: number) {
-    try {
-      const res = await fetch("/api/patient/doctors", {
-        method: "DELETE", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignment_id: assignmentId }),
-      });
-      if (res.ok) setDoctors(prev => prev.filter(d => d.assignment_id !== assignmentId));
-    } catch {}
-  }
-
   const handleLogout = () => logout(router);
 
   const inputClass = (errors: Record<string, string>, field: string) =>
@@ -285,16 +274,10 @@ export default function AccountPage() {
                 {doctors.map(d => {
                   const name = [d.first_name, d.last_name].filter(Boolean).join(" ") || d.email.split("@")[0];
                   return (
-                    <div key={d.assignment_id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">Dr. {name}</p>
-                        <p className="text-xs text-gray-400">{d.email}</p>
-                        <p className="text-xs text-gray-400">Vinculado: {new Date(d.assigned_at).toLocaleDateString("es-AR")}</p>
-                      </div>
-                      <button
-                        onClick={() => handleUnlink(d.assignment_id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >Desvincular</button>
+                    <div key={d.assignment_id} className="py-3 border-b border-gray-50 last:border-0">
+                      <p className="text-sm font-medium text-gray-800">Dr. {name}</p>
+                      <p className="text-xs text-gray-400">{d.email}</p>
+                      <p className="text-xs text-gray-400">Vinculado: {new Date(d.assigned_at).toLocaleDateString("es-AR")}</p>
                     </div>
                   );
                 })}
