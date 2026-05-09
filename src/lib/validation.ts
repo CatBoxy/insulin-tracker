@@ -42,6 +42,19 @@ export const deviceTokenSchema = z.object({
   platform: z.enum(["ios", "android", "web"]),
 });
 
+export const updateAccountSchema = z.object({
+  first_name: z.string().min(1, "Nombre requerido").max(100),
+  last_name: z.string().min(1, "Apellido requerido").max(100),
+  phone: z.string().max(30).optional(),
+  date_of_birth: z.string().optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+});
+
+export const changePasswordSchema = z.object({
+  current_password: z.string().min(1, "Contraseña actual requerida"),
+  new_password: z.string().min(8, "La nueva contraseña debe tener al menos 8 caracteres"),
+});
+
 export const createUserSchema = z.object({
   email: z.string().email("Email válido requerido"),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),

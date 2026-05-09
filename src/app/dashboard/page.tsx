@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { logout } from "@/lib/logout";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 interface User { id: number; email: string; role: string }
 interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; recorded_at: string }
@@ -162,11 +163,15 @@ function DashboardContent() {
               <p className="text-xs text-gray-500">Hola, {user.email.split("@")[0]}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
+          <div className="flex items-center gap-4">
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <PwaInstallPrompt />
         {/* Alerts */}
         {alerts.length > 0 && (
           <div className="space-y-2">

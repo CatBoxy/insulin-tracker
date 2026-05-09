@@ -213,13 +213,13 @@ A dedicated account management page for all user roles.
 - (No additional features for now)
 
 **Implementation:**
-- [ ] Create `/account` page with role-based sections
-- [ ] API endpoint: `PATCH /api/auth/account` — update personal info
-- [ ] API endpoint: `POST /api/auth/change-password` — change password
-- [ ] API endpoint: `GET /api/patient/doctors` — list linked doctors for patient
-- [ ] API endpoint: `DELETE /api/patient/doctors/[id]` — unlink from doctor
-- [ ] Add "Mi Cuenta" nav item to header on all pages
-- [ ] Zod schemas for account update and password change
+- [x] Create `/account` page with personal info, password change, linked doctors
+- [x] API endpoint: `PATCH /api/auth/account` — update personal info
+- [x] API endpoint: `POST /api/auth/change-password` — change password
+- [x] API endpoint: `GET /api/patient/doctors` — list linked doctors for patient
+- [x] API endpoint: `DELETE /api/patient/doctors` — unlink from doctor
+- [x] Add "Mi Cuenta" nav item to header on dashboard, doctor, admin pages
+- [x] Zod schemas: updateAccountSchema, changePasswordSchema
 
 ### 3.9 PWA Install Prompt
 
@@ -236,10 +236,11 @@ Show an "Instalar app" button when the browser supports PWA installation.
 - Dismissible instruction banner
 
 **Implementation:**
-- [ ] Create PWA install hook/component (detect platform, manage prompt)
-- [ ] Install button in header (Android/desktop)
-- [ ] iOS instruction banner with dismiss (persisted in localStorage)
-- [ ] Hide button/banner once app is running in standalone mode
+- [x] PwaInstallPrompt component (detect platform, manage prompt)
+- [x] Android/desktop: intercept beforeinstallprompt, show install button
+- [x] iOS Safari: detect + show instruction banner with share icon
+- [x] Dismiss persisted in localStorage, hidden in standalone mode
+- [x] Added to patient dashboard
 
 ### 3.10 Android App (deferred)
 
