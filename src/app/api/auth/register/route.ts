@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 import * as authService from "@/services/auth.service";
+import { getDoctorByCode, linkPatientToDoctor } from "@/services/doctor-link.service";
+import { resolvePatientId } from "@/lib/patient-resolve";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +27,21 @@ export async function POST(request: NextRequest) {
     const user = await authService.createPatientUser(email, password);
     const token = await authService.createToken(user);
 
-    const response = NextResponse.json({ user }, { status: 201 });
+    // Auto-link to doctor if code provided
+    let linkedDoctor: string | null = null;
+    const doctorCode = body.doctorCode;
+    if (doctorCode) {
+      const doctor = await getDoctorByCode(doctorCode);
+      if (doctor) {
+        const patientId = await resolvePatientId(user.id);
+        if (patientId) {
+          await linkPatientToDoctor(patientId, doctor.id);
+          linkedDoctor = [doctor.first_name, doctor.last_name].filter(Boolean).join(" ") || doctor.email.split("@")[0];
+        }
+      }
+    }
+
+    const response = NextResponse.json({ user, linkedDoctor }, { status: 201 });
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",

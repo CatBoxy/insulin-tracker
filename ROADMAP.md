@@ -136,14 +136,16 @@ Doctors generate a QR code. Patients scan it to register (or link if already reg
 **Doctor code:** permanent, one per doctor (stored in doctors table).
 
 **Implementation:**
-- [ ] Migration: add `code` column to doctors table (unique, generated on doctor creation)
-- [ ] Generate doctor codes for existing doctors
-- [ ] API endpoint: `GET /api/doctors/qr` — returns QR image for authenticated doctor
-- [ ] API endpoint: `GET /api/doctors/by-code/[code]` — public, returns doctor name (for confirmation)
-- [ ] Update register flow to accept `doctor` query param and auto-link
-- [ ] Logged-in patient flow: detect doctor param, show confirmation, create link
-- [ ] Doctor dashboard: "Mi código QR" button/section
-- [ ] QR generation library (e.g., qrcode package)
+- [x] Migration: add `code` column to doctors table (unique, auto-generated 6-char code)
+- [x] Generate doctor codes for existing doctors
+- [x] API endpoint: `GET /api/doctors/qr` — returns QR data URL for authenticated doctor
+- [x] API endpoint: `GET /api/doctors/by-code?code=X` — public, returns doctor name
+- [x] API endpoint: `POST /api/doctors/link` — patient links to doctor by code
+- [x] Update register flow to accept `doctor` query param and auto-link
+- [x] Login flow preserves doctor code through to dashboard
+- [x] Logged-in patient flow: detect `?doctor=CODE`, show confirmation prompt, create link
+- [x] Doctor dashboard: "Mi Código QR" section with show/hide toggle
+- [x] QR generation via qrcode package
 
 ### 3.5 Patient Data Export (PDF)
 

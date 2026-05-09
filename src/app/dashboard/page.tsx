@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { logout } from "@/lib/logout";
 
@@ -11,7 +11,13 @@ interface Medication { id: number; name: string; dosage: string; frequency: stri
 interface Appointment { id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; doctor_email: string; doctor_first_name: string | null; doctor_last_name: string | null }
 
 export default function DashboardPage() {
+  return <Suspense><DashboardContent /></Suspense>;
+}
+
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const doctorCode = searchParams.get("doctor");
   const [user, setUser] = useState<User | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
@@ -24,6 +30,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState<"success" | "warning" | "critical">("success");
+  const [linkPrompt, setLinkPrompt] = useState<{ code: string; name: string } | null>(null);
+  const [linkMsg, setLinkMsg] = useState("");
 
   const loadData = useCallback(async () => {
     try {
@@ -62,6 +70,15 @@ export default function DashboardPage() {
   }, [router]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    if (doctorCode) {
+      fetch(`/api/doctors/by-code?code=${doctorCode}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.doctor) setLinkPrompt({ code: doctorCode, name: d.doctor.name }); })
+        .catch(() => {});
+    }
+  }, [doctorCode]);
 
   async function logMeasurement(type: string) {
     setLoading(true); setMsg(""); setMsgType("success");
@@ -167,6 +184,42 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Doctor Link Prompt */}
+        {linkPrompt && !linkMsg && (
+          <div className="bg-primary-50 border border-primary-200 rounded-2xl p-6 text-center">
+            <p className="text-sm text-primary-800 mb-3">
+              Querés vincularte con <span className="font-semibold">Dr. {linkPrompt.name}</span>?
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={async () => {
+                  const res = await fetch("/api/doctors/link", {
+                    method: "POST", credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code: linkPrompt.code }),
+                  });
+                  const data = await res.json();
+                  setLinkMsg(data.message || data.error);
+                  setLinkPrompt(null);
+                  router.replace("/dashboard");
+                }}
+                className="bg-primary-500 hover:bg-primary-600 text-white px-6 py-2 rounded-xl text-sm font-medium transition"
+              >
+                Vincularme
+              </button>
+              <button
+                onClick={() => { setLinkPrompt(null); router.replace("/dashboard"); }}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-xl text-sm font-medium transition"
+              >
+                No, gracias
+              </button>
+            </div>
+          </div>
+        )}
+        {linkMsg && (
+          <div className="bg-primary-50 text-primary-700 p-3 rounded-xl text-sm text-center font-medium">{linkMsg}</div>
         )}
 
         {/* Upcoming appointments */}
