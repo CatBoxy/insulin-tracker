@@ -172,7 +172,46 @@ Review and fix responsive layout issues (overflow, spacing, placement).
 - [ ] Ensure touch targets are adequate (min 44px)
 - [ ] Test PWA standalone mode layout
 
-### 3.7 Android App (deferred)
+### 3.7 Soft Deletes & Audit Columns
+
+Add `updated_at` and `deleted_at` columns to all tables for proper tracking and soft delete support.
+
+**Tables needing `updated_at`:**
+- users, patients, doctors, patient_doctor, prescriptions, prescription_items, measurements, alerts
+
+**All tables need `deleted_at`:**
+- Add `deleted_at TIMESTAMPTZ` (NULL = active, set = soft-deleted)
+- Update all queries to filter `WHERE deleted_at IS NULL`
+- Update services to use soft deletes instead of hard deletes
+
+**Implementation:**
+- [ ] Migration: add `updated_at` to tables missing it
+- [ ] Migration: add `deleted_at` to all tables
+- [ ] Update services to set `deleted_at = NOW()` instead of DELETE
+- [ ] Update all SELECT queries to filter `deleted_at IS NULL`
+- [ ] Add database triggers to auto-update `updated_at` on row changes
+
+### 3.8 Admin Dashboard Enhancements
+
+Improve the admin panel with a comprehensive view of users and relationships.
+
+- [ ] Overview stats (total users, patients, doctors, active assignments)
+- [ ] User list with role filters and search
+- [ ] Patient-doctor relationship view (who is assigned to whom, since when)
+- [ ] Ability to edit user details (name, email, role)
+- [ ] Ability to deactivate/reactivate users (soft delete)
+- [ ] Activity log (recent measurements, alerts, logins)
+
+### 3.9 Password Security Review
+
+Passwords are currently hashed with bcrypt (10 salt rounds). Review and harden if needed.
+
+- [ ] Evaluate moving to argon2 or increasing bcrypt salt rounds
+- [ ] Add password strength requirements (uppercase, number, special char)
+- [ ] Add password change endpoint for users
+- [ ] Add password reset flow (email-based)
+
+### 3.10 Android App (deferred)
 
 PWA + QR approach is priority. Native Android app will be considered after PWA is stable and feature-complete. API-first architecture ensures the same backend serves both.
 
