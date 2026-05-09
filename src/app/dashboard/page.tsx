@@ -179,29 +179,29 @@ export default function DashboardPage() {
                   ? `Dr. ${a.doctor_first_name || ""} ${a.doctor_last_name || ""}`.trim()
                   : a.doctor_email.split("@")[0];
                 return (
-                  <div key={a.id} className="flex items-center justify-between p-3 rounded-xl border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">{a.type === "video_call" ? "📹" : "🏥"}</span>
-                      <div>
+                  <div key={a.id} className="p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-start gap-3">
+                      <span className="text-lg shrink-0">{a.type === "video_call" ? "📹" : "🏥"}</span>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-800">
                           {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
                           {" "}
                           {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                         <p className="text-xs text-gray-400">{doctorName} — {a.duration_minutes} min</p>
-                        {a.reason && <p className="text-xs text-gray-500">{a.reason}</p>}
+                        {a.reason && <p className="text-xs text-gray-500 truncate">{a.reason}</p>}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
-                        {a.status === "confirmed" ? "Confirmada" : "Pendiente"}
-                      </span>
-                      {a.status === "pending" && (
-                        <button onClick={async () => {
-                          await fetch(`/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmed" }) });
-                          setAppointments(prev => prev.map(x => x.id === a.id ? { ...x, status: "confirmed" } : x));
-                        }} className="text-xs text-primary-600 font-medium hover:underline">Confirmar</button>
-                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "confirmed" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}>
+                          {a.status === "confirmed" ? "Confirmada" : "Pendiente"}
+                        </span>
+                        {a.status === "pending" && (
+                          <button onClick={async () => {
+                            await fetch(`/api/appointments/${a.id}`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "confirmed" }) });
+                            setAppointments(prev => prev.map(x => x.id === a.id ? { ...x, status: "confirmed" } : x));
+                          }} className="text-xs text-primary-600 font-medium hover:underline">Confirmar</button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -224,24 +224,22 @@ export default function DashboardPage() {
                 </label>
               ))}
             </div>
-            <div className="flex gap-2">
-              <input type="number" value={glucemia} onChange={e => setGlucemia(e.target.value)} placeholder="mg/dL"
-                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
-              <button onClick={() => logMeasurement("glucemia")} disabled={!glucemia || loading}
-                className="bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium disabled:opacity-50 transition">Registrar</button>
-            </div>
+            <input type="number" value={glucemia} onChange={e => setGlucemia(e.target.value)} placeholder="mg/dL"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 mb-3" />
+            <button onClick={() => logMeasurement("glucemia")} disabled={!glucemia || loading}
+              className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl font-medium disabled:opacity-50 transition">Registrar</button>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="font-semibold text-gray-800 mb-3">💓 Presión Arterial</h3>
-            <div className="flex gap-2">
-              <input type="number" value={systolic} onChange={e => setSystolic(e.target.value)} placeholder="Sist."
-                className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
-              <span className="self-center text-gray-400">/</span>
-              <input type="number" value={diastolic} onChange={e => setDiastolic(e.target.value)} placeholder="Diast."
-                className="w-20 px-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
-              <button onClick={() => logMeasurement("blood_pressure")} disabled={!systolic || !diastolic || loading}
-                className="bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium disabled:opacity-50 transition">Registrar</button>
+            <div className="flex gap-2 mb-3">
+              <input type="number" value={systolic} onChange={e => setSystolic(e.target.value)} placeholder="Sistólica"
+                className="flex-1 min-w-0 px-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+              <span className="self-center text-gray-400 shrink-0">/</span>
+              <input type="number" value={diastolic} onChange={e => setDiastolic(e.target.value)} placeholder="Diastólica"
+                className="flex-1 min-w-0 px-3 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
+            <button onClick={() => logMeasurement("blood_pressure")} disabled={!systolic || !diastolic || loading}
+              className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl font-medium disabled:opacity-50 transition">Registrar</button>
           </div>
         </div>
 
