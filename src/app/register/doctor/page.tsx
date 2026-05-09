@@ -93,22 +93,20 @@ export default function DoctorRegisterPage() {
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="+54 11 1234-5678" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
-              <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
-              <select value={gender} onChange={e => setGender(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition bg-white">
-                <option value="">Seleccionar</option>
-                <option value="male">Masculino</option>
-                <option value="female">Femenino</option>
-                <option value="other">Otro</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
+            <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
+            <select value={gender} onChange={e => setGender(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition bg-white">
+              <option value="">Seleccionar</option>
+              <option value="male">Masculino</option>
+              <option value="female">Femenino</option>
+              <option value="other">Otro</option>
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
