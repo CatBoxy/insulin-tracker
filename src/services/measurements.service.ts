@@ -1,6 +1,6 @@
 import pool from "@/lib/db";
 import { checkAndCreateAlert } from "@/lib/alerts";
-import { getGlucemiaStatus, getBloodPressureStatus, type VitalStatus } from "@/lib/thresholds";
+import { getGlucemiaStatus, getBloodPressureStatus, type VitalStatus, type MeasurementContext } from "@/lib/thresholds";
 
 interface CreateMeasurementInput {
   patientId: number;
@@ -8,12 +8,13 @@ interface CreateMeasurementInput {
   value?: number;
   systolic?: number;
   diastolic?: number;
+  context?: string;
   notes?: string;
 }
 
 export async function listByPatient(patientId: number, limit = 50) {
   const { rows } = await pool.query(
-    "SELECT id, type, value, unit, notes, recorded_at FROM measurements WHERE patient_id = $1 ORDER BY recorded_at DESC LIMIT $2",
+    "SELECT id, type, value, unit, context, notes, recorded_at FROM measurements WHERE patient_id = $1 ORDER BY recorded_at DESC LIMIT $2",
     [patientId, limit]
   );
   return rows;
@@ -65,7 +66,7 @@ export async function getChartData(
   from?: string,
   to?: string
 ) {
-  let query = `SELECT id, type, value, unit, notes, recorded_at
+  let query = `SELECT id, type, value, unit, context, notes, recorded_at
                FROM measurements WHERE patient_id = $1 AND type = $2`;
   const queryParams: (number | string)[] = [patientId, type];
 
@@ -98,7 +99,7 @@ export async function getChartData(
 }
 
 export async function create(input: CreateMeasurementInput) {
-  const { patientId, type, value, systolic, diastolic, notes } = input;
+  const { patientId, type, value, systolic, diastolic, context, notes } = input;
 
   let measValue: number;
   let unit: string;
@@ -120,19 +121,20 @@ export async function create(input: CreateMeasurementInput) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO measurements (patient_id, type, value, unit, recorded_by, notes, recorded_at)
-     VALUES ($1, $2, $3, $4, 'self', $5, NOW()) RETURNING *`,
-    [patientId, type, measValue, unit, measNotes]
+    `INSERT INTO measurements (patient_id, type, value, unit, context, recorded_by, notes, recorded_at)
+     VALUES ($1, $2, $3, $4, $5, 'self', $6, NOW()) RETURNING *`,
+    [patientId, type, measValue, unit, context || null, measNotes]
   );
 
   const measurement = rows[0];
   const alertResult = await checkAndCreateAlert(measurement);
 
+  const ctx = (context as MeasurementContext) || undefined;
   let status: VitalStatus = "normal";
   if (alertResult) {
     status = alertResult.status;
   } else if (type === "glucemia") {
-    status = getGlucemiaStatus(measValue);
+    status = getGlucemiaStatus(measValue, ctx);
   } else if (type === "blood_pressure") {
     status = getBloodPressureStatus(measValue, diastolic!);
   }

@@ -24,12 +24,14 @@ const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
   warning: "bg-yellow-100 text-yellow-700",
   critical: "bg-red-100 text-red-700",
+  emergency: "bg-red-200 text-red-900",
 };
 
 const statusDot: Record<VitalStatus, string> = {
   normal: statusColors.normal.dot,
   warning: statusColors.warning.dot,
   critical: statusColors.critical.dot,
+  emergency: statusColors.emergency.dot,
 };
 
 function parseDiastolic(notes: string | null): number | null {
@@ -87,7 +89,7 @@ export default function DoctorDashboard() {
 
   // Sort: critical first, then warning, then normal
   const sorted = [...patients].sort((a, b) => {
-    const order: Record<VitalStatus, number> = { critical: 0, warning: 1, normal: 2 };
+    const order: Record<VitalStatus, number> = { emergency: 0, critical: 1, warning: 2, normal: 3 };
     return order[worstStatus(a)] - order[worstStatus(b)];
   });
 

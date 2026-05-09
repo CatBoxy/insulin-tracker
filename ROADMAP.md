@@ -76,12 +76,14 @@ Add context to glucose measurements so thresholds adjust based on when it was ta
 - Emergency thresholds trigger urgent alert messages
 
 **Implementation:**
-- [ ] Migration: add `context` column to measurements table (enum: fasting, postprandial, pre_dinner)
-- [ ] Update measurement form UI with context selection (required for glucemia)
-- [ ] Update Zod measurementSchema with context field
-- [ ] Update thresholds.ts with context-aware glucose ranges
-- [ ] Update alerts.ts to use context-aware thresholds
-- [ ] Update measurement service create method
+- [x] Migration: add `context` column to measurements table
+- [x] Update measurement form UI with context selection (radio buttons, required for glucemia)
+- [x] Update Zod measurementSchema with context field
+- [x] Update thresholds.ts with context-aware glucose ranges + emergency level
+- [x] Update alerts.ts to use context-aware thresholds with urgent messages
+- [x] Update measurement service create method
+- [x] Show context label in measurement history list
+- [x] Add emergency status to doctor views (statusBadge, sort order)
 
 ### 3.2 Web Push Notifications
 

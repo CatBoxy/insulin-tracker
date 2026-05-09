@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       value: parsed.data.value,
       systolic: parsed.data.systolic,
       diastolic: parsed.data.diastolic,
+      context: parsed.data.context,
       notes: parsed.data.notes,
     });
 
