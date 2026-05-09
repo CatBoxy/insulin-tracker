@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
 import { requireAuth } from "@/lib/auth-middleware";
+import * as alertsService from "@/services/alerts.service";
 
 export async function PUT(
   request: NextRequest,
@@ -14,25 +14,16 @@ export async function PUT(
       return NextResponse.json({ error: "ID de alerta inválido" }, { status: 400 });
     }
 
-    const { rows } = await pool.query(
-      `SELECT id, patient_id FROM alerts WHERE id = $1`,
-      [alertId]
-    );
-
-    if (rows.length === 0) {
+    const alert = await alertsService.findById(alertId);
+    if (!alert) {
       return NextResponse.json({ error: "Alerta no encontrada" }, { status: 404 });
     }
 
-    // Patients can only dismiss their own alerts; doctors/admins can dismiss any
-    if (user.role === "patient" && rows[0].patient_id !== user.id) {
+    if (user.role === "patient" && alert.patient_id !== user.id) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    await pool.query(
-      `UPDATE alerts SET read = TRUE, read_at = NOW() WHERE id = $1`,
-      [alertId]
-    );
-
+    await alertsService.dismissOne(alertId);
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof Response) return err;

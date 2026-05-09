@@ -6,8 +6,8 @@ Work log and feature tracker for Nivelo. Check items off as they are completed.
 
 ## Phase 0 — Infrastructure & DevOps
 
-- [ ] Set up CI/CD: merge to main → auto-deploy to production server
-- [ ] Set up migration system with version tracking (pending decision: raw SQL runner vs node-pg-migrate)
+- [x] Set up CI/CD: merge to main → auto-deploy to production server (GitHub Actions + SSH)
+- [x] Set up migration system with version tracking (node-pg-migrate)
 - [ ] Create VPS dashboard app (Astro, separate repo) — central hub to monitor all server projects
   - [ ] System status overview (CPU, memory, disk, uptime)
   - [ ] Per-project tabs with status, links, logs
@@ -19,15 +19,15 @@ Work log and feature tracker for Nivelo. Check items off as they are completed.
 
 Extract all direct DB queries from route handlers into service files. No route handler should import `pool` or run SQL directly.
 
-- [ ] Create `src/services/auth.service.ts` — login, register, user lookup
-- [ ] Create `src/services/measurements.service.ts` — CRUD, chart data, pagination
-- [ ] Create `src/services/alerts.service.ts` — list, dismiss, check, batch operations
-- [ ] Create `src/services/appointments.service.ts` — CRUD, upcoming filter
-- [ ] Create `src/services/medications.service.ts` — list prescriptions
-- [ ] Create `src/services/admin.service.ts` — user management, doctor-patient assignments
-- [ ] Create `src/services/doctor.service.ts` — patient list, patient detail aggregation
-- [ ] Create `src/services/device-tokens.service.ts` — register/unregister tokens
-- [ ] Refactor all route handlers to use service layer (thin controllers)
+- [x] Create `src/services/auth.service.ts` — login, register, user lookup
+- [x] Create `src/services/measurements.service.ts` — CRUD, chart data, pagination
+- [x] Create `src/services/alerts.service.ts` — list, dismiss, check, batch operations
+- [x] Create `src/services/appointments.service.ts` — CRUD, upcoming filter
+- [x] Create `src/services/medications.service.ts` — list prescriptions
+- [x] Create `src/services/admin.service.ts` — user management, doctor-patient assignments
+- [x] Create `src/services/doctor.service.ts` — patient list, patient detail aggregation
+- [x] Create `src/services/device-tokens.service.ts` — register/unregister tokens
+- [x] Refactor all route handlers to use service layer (thin controllers)
 
 ## Phase 2 — Security & Validation Fixes
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { comparePassword, signToken } from "@/lib/auth";
-import pool from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 import { loginSchema } from "@/lib/validation";
+import * as authService from "@/services/auth.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,18 +15,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    const { email, password } = parsed.data;
 
-    const { rows } = await pool.query("SELECT id, email, password_hash, role FROM users WHERE email = $1", [email.toLowerCase()]);
-    if (rows.length === 0) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    const user = await authService.verifyCredentials(parsed.data.email, parsed.data.password);
+    if (!user) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
 
-    const user = rows[0];
-    const valid = await comparePassword(password, user.password_hash);
-    if (!valid) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
+    const token = await authService.createToken(user);
 
-    const token = await signToken({ sub: user.id, email: user.email, role: user.role });
-
-    const response = NextResponse.json({ user: { id: user.id, email: user.email, role: user.role } });
+    const response = NextResponse.json({ user });
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",

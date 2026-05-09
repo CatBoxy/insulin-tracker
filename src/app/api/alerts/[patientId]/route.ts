@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-middleware";
-import pool from "@/lib/db";
+import * as alertsService from "@/services/alerts.service";
 
 export async function GET(
   request: NextRequest,
@@ -19,15 +19,8 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const { rows } = await pool.query(
-      `SELECT id, patient_id, type, severity, title, message, read, created_at
-       FROM alerts
-       WHERE patient_id = $1 AND read = FALSE
-       ORDER BY created_at DESC`,
-      [pid]
-    );
-
-    return NextResponse.json({ alerts: rows });
+    const alerts = await alertsService.listByPatient(pid);
+    return NextResponse.json({ alerts });
   } catch (err) {
     if (err instanceof Response) return err;
     console.error("Get alerts error:", err);

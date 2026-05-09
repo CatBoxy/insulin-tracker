@@ -1,29 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-middleware";
-import { checkAndCreateRefillAlerts } from "@/lib/refill-alerts";
+import { checkAndCreateRefillAlerts } from "@/services/alerts.service";
 
 export async function POST(request: NextRequest) {
   try {
-    let user;
-    try {
-      user = await requireAuth(request);
-    } catch (res) {
-      if (res instanceof Response) return res;
-      throw res;
-    }
-
+    const user = await requireAuth(request);
     if (user.role !== "admin") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
     const result = await checkAndCreateRefillAlerts();
-
     return NextResponse.json(result);
-  } catch (error) {
-    console.error("Check refills error:", error);
-    return NextResponse.json(
-      { error: "Error interno" },
-      { status: 500 }
-    );
+  } catch (err) {
+    if (err instanceof Response) return err;
+    console.error("Check refills error:", err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }
