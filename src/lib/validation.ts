@@ -8,6 +8,13 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   email: z.string().email("Email válido requerido"),
   password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  first_name: z.string().min(1, "Nombre requerido").max(100),
+  last_name: z.string().min(1, "Apellido requerido").max(100),
+  date_of_birth: z.string().optional(),
+  gender: z.enum(["male", "female", "other"]).optional(),
+  phone: z.string().max(30).optional(),
+  doctorCode: z.string().optional(),
+  role: z.enum(["patient", "doctor"]).optional(),
 });
 
 export const measurementSchema = z.object({

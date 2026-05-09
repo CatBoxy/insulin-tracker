@@ -19,19 +19,43 @@ export async function verifyCredentials(email: string, password: string) {
   return { id: user.id, email: user.email, role: user.role };
 }
 
-export async function createPatientUser(email: string, password: string) {
+interface CreateUserInput {
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth?: string;
+  gender?: string;
+  phone?: string;
+  role?: "patient" | "doctor";
+}
+
+export async function createUser(input: CreateUserInput) {
+  const { email, password, first_name, last_name, date_of_birth, gender, phone, role = "patient" } = input;
   const password_hash = await hashPassword(password);
 
   const { rows } = await pool.query(
-    "INSERT INTO users (email, password_hash, role, first_name, last_name) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role",
-    [email.toLowerCase(), password_hash, "patient", email.split("@")[0], ""]
+    "INSERT INTO users (email, password_hash, role, first_name, last_name, phone) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email, role",
+    [email.toLowerCase(), password_hash, role, first_name, last_name, phone || null]
   );
 
   const user = rows[0];
 
-  await pool.query("INSERT INTO patients (user_id) VALUES ($1)", [user.id]);
+  if (role === "patient") {
+    await pool.query(
+      "INSERT INTO patients (user_id, date_of_birth, gender) VALUES ($1, $2, $3)",
+      [user.id, date_of_birth || null, gender || null]
+    );
+  } else if (role === "doctor") {
+    await pool.query("INSERT INTO doctors (user_id) VALUES ($1)", [user.id]);
+  }
 
   return user;
+}
+
+/** @deprecated Use createUser instead */
+export async function createPatientUser(email: string, password: string) {
+  return createUser({ email, password, first_name: email.split("@")[0], last_name: "" });
 }
 
 export async function emailExists(email: string): Promise<boolean> {
