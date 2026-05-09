@@ -3,6 +3,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PasswordInput from "@/components/PasswordInput";
+import { loginSchema } from "@/lib/validation";
 
 export default function LoginPage() {
   return <Suspense><LoginContent /></Suspense>;
@@ -14,17 +15,31 @@ function LoginContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
+
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as string;
+        if (!errors[key]) errors[key] = issue.message;
+      }
+      setFieldErrors(errors);
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {credentials:"include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(parsed.data),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al iniciar sesión"); return; }
@@ -34,6 +49,9 @@ function LoginContent() {
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }
+
+  const inputClass = (field: string) =>
+    `w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition ${fieldErrors[field] ? "border-red-300" : "border-gray-200"}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 px-4">
@@ -51,12 +69,15 @@ function LoginContent() {
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="tu@email.com" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              className={inputClass("email")} placeholder="tu@email.com" />
+            {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-            <PasswordInput value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+            <PasswordInput value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+              className={inputClass("password") + " pr-12"} />
+            {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
           </div>
           <button type="submit" disabled={loading}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">

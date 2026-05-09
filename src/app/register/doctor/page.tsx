@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import PasswordInput from "@/components/PasswordInput";
+import { registerSchema } from "@/lib/validation";
 
 export default function DoctorRegisterPage() {
   const [firstName, setFirstName] = useState("");
@@ -13,6 +14,7 @@ export default function DoctorRegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -29,9 +31,29 @@ export default function DoctorRegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
 
     if (password !== confirm) {
-      setError("Las contraseñas no coinciden");
+      setFieldErrors({ confirm: "Las contraseñas no coinciden" });
+      return;
+    }
+
+    const payload = {
+      email, password, first_name: firstName, last_name: lastName,
+      phone: phone || undefined,
+      date_of_birth: dateOfBirth || undefined,
+      gender: gender || undefined,
+      role: "doctor" as const,
+    };
+
+    const parsed = registerSchema.safeParse(payload);
+    if (!parsed.success) {
+      const errors: Record<string, string> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0] as string;
+        if (!errors[key]) errors[key] = issue.message;
+      }
+      setFieldErrors(errors);
       return;
     }
 
@@ -41,13 +63,7 @@ export default function DoctorRegisterPage() {
         credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email, password, first_name: firstName, last_name: lastName,
-          phone: phone || undefined,
-          date_of_birth: dateOfBirth || undefined,
-          gender: gender || undefined,
-          role: "doctor",
-        }),
+        body: JSON.stringify(parsed.data),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al registrarse"); return; }
@@ -55,6 +71,9 @@ export default function DoctorRegisterPage() {
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }
+
+  const inputClass = (field: string) =>
+    `w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition ${fieldErrors[field] ? "border-red-300" : "border-gray-200"}`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 px-4 py-8">
@@ -74,34 +93,38 @@ export default function DoctorRegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-              <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="María" />
+              <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
+                className={inputClass("first_name")} placeholder="María" />
+              {fieldErrors.first_name && <p className="text-red-500 text-xs mt-1">{fieldErrors.first_name}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
-              <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="García" />
+              <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
+                className={inputClass("last_name")} placeholder="García" />
+              {fieldErrors.last_name && <p className="text-red-500 text-xs mt-1">{fieldErrors.last_name}</p>}
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico *</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="doctor@email.com" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              className={inputClass("email")} placeholder="doctor@email.com" />
+            {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" placeholder="+54 11 1234-5678" />
+              className={inputClass("phone")} placeholder="+54 11 1234-5678" />
+            {fieldErrors.phone && <p className="text-red-500 text-xs mt-1">{fieldErrors.phone}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
             <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition" />
+              className={inputClass("date_of_birth")} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>
             <select value={gender} onChange={e => setGender(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition bg-white">
+              className={inputClass("gender") + " bg-white"}>
               <option value="">Seleccionar</option>
               <option value="male">Masculino</option>
               <option value="female">Femenino</option>
@@ -110,11 +133,15 @@ export default function DoctorRegisterPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña *</label>
-            <PasswordInput value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres" required minLength={8} />
+            <PasswordInput value={password} onChange={e => setPassword(e.target.value)} placeholder="Mínimo 8 caracteres"
+              className={inputClass("password") + " pr-12"} />
+            {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña *</label>
-            <PasswordInput value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repetí tu contraseña" required minLength={8} />
+            <PasswordInput value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repetí tu contraseña"
+              className={inputClass("confirm") + " pr-12"} />
+            {fieldErrors.confirm && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirm}</p>}
           </div>
           <button type="submit" disabled={loading}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
