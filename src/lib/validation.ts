@@ -17,6 +17,7 @@ export const measurementSchema = z.object({
   value: z.number().optional(),
   systolic: z.number().min(40).max(300).optional(),
   diastolic: z.number().min(20).max(200).optional(),
+  context: z.enum(["fasting", "postprandial", "pre_dinner"]).optional(),
   notes: z.string().optional(),
 }).refine(
   data => data.type !== "blood_pressure" || (!!data.systolic && !!data.diastolic),
@@ -24,6 +25,9 @@ export const measurementSchema = z.object({
 ).refine(
   data => data.type !== "blood_pressure" || !data.systolic || !data.diastolic || data.systolic > data.diastolic,
   { message: "La presión sistólica debe ser mayor que la diastólica" }
+).refine(
+  data => data.type !== "glucemia" || !!data.context,
+  { message: "Contexto requerido para glucemia (en ayunas, postprandial, antes de cenar)" }
 );
 
 export const deviceTokenSchema = z.object({

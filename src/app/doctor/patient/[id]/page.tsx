@@ -8,6 +8,7 @@ const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
   warning: "bg-yellow-100 text-yellow-700",
   critical: "bg-red-100 text-red-700",
+  emergency: "bg-red-200 text-red-900",
 };
 
 function parseDiastolic(notes: string | null): number | null {

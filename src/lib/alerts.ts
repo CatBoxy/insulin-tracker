@@ -1,11 +1,12 @@
 import pool from "./db";
-import { THRESHOLDS, type VitalStatus } from "./thresholds";
+import { THRESHOLDS, GLUCOSE_THRESHOLDS, CONTEXT_LABELS, getGlucemiaStatus, type VitalStatus, type MeasurementContext } from "./thresholds";
 
 interface MeasurementData {
   id: number;
   patient_id: number;
   type: string;
   value: number;
+  context?: string;
   notes?: string;
 }
 
@@ -23,15 +24,24 @@ export async function checkAndCreateAlert(measurement: MeasurementData): Promise
 
     if (measurement.type === "glucemia") {
       const v = measurement.value;
-      if (v < THRESHOLDS.glucemia.criticalLow || v > THRESHOLDS.glucemia.criticalHigh) {
-        severity = "critical";
-      }
+      const ctx = (measurement.context as MeasurementContext) || "fasting";
+      const thresholds = GLUCOSE_THRESHOLDS[ctx];
+      const contextLabel = CONTEXT_LABELS[ctx];
+
+      severity = getGlucemiaStatus(v, ctx);
+
       if (v < THRESHOLDS.glucemia.warningLow) {
         title = "Glucemia baja";
-        message = `${v} ${THRESHOLDS.glucemia.unit} (mínimo: ${THRESHOLDS.glucemia.warningLow})`;
-      } else if (v > THRESHOLDS.glucemia.warningHigh) {
-        title = "Glucemia alta";
-        message = `${v} ${THRESHOLDS.glucemia.unit} (máximo: ${THRESHOLDS.glucemia.warningHigh})`;
+        message = `${v} ${THRESHOLDS.glucemia.unit} (${contextLabel}) — mínimo: ${THRESHOLDS.glucemia.warningLow}`;
+      } else if (v >= thresholds.emergencyHigh) {
+        title = "Glucemia muy alta — consulte urgente";
+        message = `${v} ${THRESHOLDS.glucemia.unit} (${contextLabel}) — máximo: ${thresholds.emergencyHigh}`;
+      } else if (v >= thresholds.criticalHigh) {
+        title = "Glucemia alta — atención";
+        message = `${v} ${THRESHOLDS.glucemia.unit} (${contextLabel}) — máximo: ${thresholds.criticalHigh}`;
+      } else if (v >= thresholds.warningHigh) {
+        title = "Glucemia elevada";
+        message = `${v} ${THRESHOLDS.glucemia.unit} (${contextLabel}) — máximo: ${thresholds.warningHigh}`;
       }
     }
 
@@ -51,10 +61,11 @@ export async function checkAndCreateAlert(measurement: MeasurementData): Promise
     }
 
     if (title) {
+      const dbSeverity = severity === "emergency" ? "critical" : severity;
       await pool.query(
         `INSERT INTO alerts (patient_id, type, severity, title, message)
          VALUES ($1, 'measurement_critical', $2, $3, $4)`,
-        [measurement.patient_id, severity, title, message]
+        [measurement.patient_id, dbSeverity, title, message]
       );
       return { status: severity, title, message };
     }

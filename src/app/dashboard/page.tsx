@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { logout } from "@/lib/logout";
 
 interface User { id: number; email: string; role: string }
-interface Measurement { id: number; type: string; value: number; unit: string; notes: string; recorded_at: string }
+interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; recorded_at: string }
 interface Alert { id: number; title: string; message: string; severity: string }
 interface Medication { id: number; name: string; dosage: string; frequency: string; instructions: string }
 interface Appointment { id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; doctor_email: string; doctor_first_name: string | null; doctor_last_name: string | null }
@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [glucemia, setGlucemia] = useState("");
+  const [glucemiaContext, setGlucemiaContext] = useState<"fasting" | "postprandial" | "pre_dinner">("fasting");
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
   const [loading, setLoading] = useState(false);
@@ -78,7 +79,7 @@ export default function DashboardPage() {
     }
 
     const body = type === "glucemia"
-      ? { type, value: Number(glucemia) }
+      ? { type, value: Number(glucemia), context: glucemiaContext }
       : { type: "blood_pressure", systolic: Number(systolic), diastolic: Number(diastolic) };
 
     try {
@@ -214,6 +215,15 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="font-semibold text-gray-800 mb-3">🩸 Glucemia</h3>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {([["fasting", "En ayunas"], ["postprandial", "2hs post almuerzo"], ["pre_dinner", "Antes de cenar"]] as const).map(([value, label]) => (
+                <label key={value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-sm transition ${glucemiaContext === value ? "border-primary-500 bg-primary-50 text-primary-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                  <input type="radio" name="glucemiaContext" value={value} checked={glucemiaContext === value}
+                    onChange={() => setGlucemiaContext(value)} className="sr-only" />
+                  {label}
+                </label>
+              ))}
+            </div>
             <div className="flex gap-2">
               <input type="number" value={glucemia} onChange={e => setGlucemia(e.target.value)} placeholder="mg/dL"
                 className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
@@ -258,7 +268,10 @@ export default function DashboardPage() {
             <div className="space-y-2">
               {glucemiaMeasurements.slice(0, 10).map(m => (
                 <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <p className="text-sm font-medium text-gray-800">{m.value} mg/dL</p>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{m.value} mg/dL</p>
+                    {m.context && <p className="text-xs text-gray-400">{{ fasting: "En ayunas", postprandial: "Postprandial", pre_dinner: "Antes de cenar" }[m.context] || m.context}</p>}
+                  </div>
                   <span className="text-xs text-gray-400">{new Date(m.recorded_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
               ))}
