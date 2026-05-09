@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-middleware";
+import { resolvePatientId } from "@/lib/patient-resolve";
 import * as alertsService from "@/services/alerts.service";
 
 export async function PUT(
@@ -19,8 +20,11 @@ export async function PUT(
       return NextResponse.json({ error: "Alerta no encontrada" }, { status: 404 });
     }
 
-    if (user.role === "patient" && alert.patient_id !== user.id) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    if (user.role === "patient") {
+      const myPatientId = await resolvePatientId(user.id);
+      if (alert.patient_id !== myPatientId) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
     }
 
     await alertsService.dismissOne(alertId);

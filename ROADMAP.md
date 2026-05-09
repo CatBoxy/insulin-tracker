@@ -35,34 +35,29 @@ Issues found during initial audit (2026-05-09).
 
 ### Authorization Fixes (HIGH)
 
-- [ ] Fix user.id vs patient_id mismatch in authorization checks:
-  - [ ] `GET /api/alerts/[patientId]` — uses `user.id !== pid` instead of resolved patient_id
-  - [ ] `GET /api/measurements/[patientId]` — same issue
-  - [ ] `GET /api/measurements/[patientId]/chart` — same issue
-  - [ ] `GET /api/medications/[patientId]` — same issue
-- [ ] Add doctor-patient relationship validation to `PATCH /api/appointments/[id]`
-- [ ] Fix `PATCH /api/alerts` — validate user owns the alerts before dismissing
+- [x] Fix user.id vs patient_id mismatch in authorization checks:
+  - [x] `GET /api/alerts/[patientId]` — now uses resolvePatientId + doctor access check
+  - [x] `GET /api/measurements/[patientId]` — same fix
+  - [x] `GET /api/measurements/[patientId]/chart` — same fix
+  - [x] `GET /api/medications/[patientId]` — same fix
+- [x] Add doctor-patient relationship validation to `PATCH /api/appointments/[id]`
+- [x] Fix `PUT /api/alerts/dismiss/[id]` — uses resolvePatientId for patient ownership check
 
 ### Zod Validation (MEDIUM)
 
-- [ ] Add Zod schema for `POST /api/admin/assign` (doctor_user_id, patient_id)
-- [ ] Add Zod schema for `POST /api/admin/users` (email, password, role, name)
-- [ ] Add Zod schema for `POST /api/appointments` (patient_id, scheduled_at, duration, type, location, notes)
-- [ ] Improve Zod schema for `POST /api/measurements` (replace manual validation)
-- [ ] Add Zod schema for `PATCH /api/appointments/[id]` (status, scheduled_at, etc.)
+- [x] Add Zod schema for `POST /api/admin/assign` (assignPatientSchema)
+- [x] Add Zod schema for `POST /api/admin/users` (createUserSchema)
+- [x] Add Zod schema for `POST /api/appointments` (createAppointmentSchema)
+- [x] Zod schema for `POST /api/measurements` (measurementSchema — done in Phase 1)
+- [x] Add Zod schema for `PATCH /api/appointments/[id]` (updateAppointmentSchema)
 
 ### Error Handling (MEDIUM)
 
-- [ ] Add try-catch to `POST/GET/DELETE /api/admin/assign`
-- [ ] Add try-catch to `GET/POST /api/admin/users`
-- [ ] Add try-catch to `GET/POST /api/appointments`
-- [ ] Add try-catch to `GET /api/doctor/patients`
-- [ ] Add try-catch to `GET /api/doctor/patients/[id]`
-- [ ] Add try-catch to `GET /api/medications`
+- [x] All routes now have try-catch (done in Phase 1 refactor)
 
 ### SQL Safety (LOW)
 
-- [ ] Refactor dynamic SQL field construction in `PATCH /api/appointments/[id]` to use parameterized approach
+- [x] Refactor dynamic SQL in appointments update to use explicit column map
 
 ## Phase 3 — Feature Work
 

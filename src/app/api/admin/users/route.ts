@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
+import { createUserSchema } from "@/lib/validation";
 import * as adminService from "@/services/admin.service";
 
 export async function GET() {
@@ -20,9 +21,13 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
     if (!user || user.role !== "admin") return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
-    const { email, password, role } = await request.json();
-    if (!email || !password || !role) return NextResponse.json({ error: "Todos los campos son requeridos" }, { status: 400 });
-    if (!["patient", "doctor", "admin"].includes(role)) return NextResponse.json({ error: "Rol inválido" }, { status: 400 });
+    const body = await request.json();
+    const parsed = createUserSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+
+    const { email, password, role } = parsed.data;
 
     if (await adminService.emailExists(email)) {
       return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });

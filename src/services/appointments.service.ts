@@ -76,26 +76,34 @@ export async function confirmByPatient(id: number) {
   );
 }
 
-export async function update(id: number, fields: Record<string, unknown>) {
-  const updates: string[] = [];
-  const values: unknown[] = [];
-  let idx = 1;
+const UPDATABLE_FIELDS = new Map([
+  ["scheduled_at", "scheduled_at"],
+  ["duration_minutes", "duration_minutes"],
+  ["location", "location"],
+  ["type", "type"],
+  ["status", "status"],
+  ["reason", "reason"],
+  ["notes", "notes"],
+] as const);
 
-  const allowedFields = ["scheduled_at", "duration_minutes", "location", "type", "status", "reason", "notes"];
-  for (const field of allowedFields) {
-    if (fields[field] !== undefined) {
-      updates.push(`${field} = $${idx++}`);
-      values.push(fields[field]);
+export async function update(id: number, fields: Record<string, unknown>) {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [inputKey, column] of UPDATABLE_FIELDS) {
+    if (fields[inputKey] !== undefined) {
+      values.push(fields[inputKey]);
+      setClauses.push(`${column} = $${values.length}`);
     }
   }
 
-  if (updates.length === 0) return false;
+  if (setClauses.length === 0) return false;
 
-  updates.push("updated_at = NOW()");
+  setClauses.push("updated_at = NOW()");
   values.push(id);
 
   await pool.query(
-    `UPDATE appointments SET ${updates.join(", ")} WHERE id = $${idx}`,
+    `UPDATE appointments SET ${setClauses.join(", ")} WHERE id = $${values.length}`,
     values
   );
   return true;

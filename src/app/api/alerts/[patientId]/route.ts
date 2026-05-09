@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-middleware";
+import { resolvePatientId } from "@/lib/patient-resolve";
+import { verifyAccess, getDoctorId } from "@/services/doctor.service";
 import * as alertsService from "@/services/alerts.service";
 
 export async function GET(
@@ -15,8 +17,16 @@ export async function GET(
       return NextResponse.json({ error: "ID de paciente inválido" }, { status: 400 });
     }
 
-    if (user.id !== pid && user.role !== "admin") {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    if (user.role === "patient") {
+      const myPatientId = await resolvePatientId(user.id);
+      if (myPatientId !== pid) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
+    } else if (user.role === "doctor") {
+      const doctorId = await getDoctorId(user.id);
+      if (!doctorId || !(await verifyAccess(doctorId, pid))) {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+      }
     }
 
     const alerts = await alertsService.listByPatient(pid);
