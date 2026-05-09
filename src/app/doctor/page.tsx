@@ -108,7 +108,10 @@ export default function DoctorDashboard() {
               <p className="text-xs text-gray-500">Panel del Doctor</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Cerrar sesión</button>
+          <div className="flex items-center gap-4">
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
+          </div>
         </div>
       </header>
 
