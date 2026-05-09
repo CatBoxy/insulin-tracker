@@ -178,22 +178,26 @@ export default function AdminPage() {
             <h3 className="font-semibold text-gray-800 mb-4">📋 Asignaciones Activas</h3>
             <div className="space-y-3">
               {assignments.map(a => (
-                <div key={a.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-sm text-gray-800">
-                      <span className="font-medium">{a.doctor_email}</span>
-                      <span className="text-gray-400 mx-2">→</span>
-                      <span className="font-medium">{a.patient_email}</span>
-                    </p>
-                    <p className="text-xs text-gray-400">{new Date(a.assigned_at).toLocaleDateString("es-AR")}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
-                      {a.status}
-                    </span>
-                    {a.status === "active" && (
-                      <button onClick={() => removeAssignment(a.id)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
-                    )}
+                <div key={a.id} className="py-3 border-b border-gray-50 last:border-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-800 truncate">
+                        <span className="font-medium">{a.doctor_email}</span>
+                      </p>
+                      <p className="text-sm text-gray-800 truncate">
+                        <span className="text-gray-400 mr-1">→</span>
+                        <span className="font-medium">{a.patient_email}</span>
+                      </p>
+                      <p className="text-xs text-gray-400">{new Date(a.assigned_at).toLocaleDateString("es-AR")}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                        {a.status}
+                      </span>
+                      {a.status === "active" && (
+                        <button onClick={() => removeAssignment(a.id)} className="text-red-400 hover:text-red-600 text-xs p-1">✕</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}

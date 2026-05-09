@@ -180,47 +180,44 @@ export default function DoctorDashboard() {
                   <div
                     key={p.patient_id}
                     onClick={() => router.push(`/doctor/patient/${p.patient_id}`)}
-                    className="flex items-center justify-between p-4 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50/30 cursor-pointer transition"
+                    className="p-4 rounded-xl border border-gray-100 hover:border-primary-200 hover:bg-primary-50/30 cursor-pointer transition"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
-                          {patientName(p)[0].toUpperCase()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="relative shrink-0">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium text-gray-600">
+                            {patientName(p)[0].toUpperCase()}
+                          </div>
+                          <div className={`absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${statusDot[status]}`} />
                         </div>
-                        <div className={`absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${statusDot[status]}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{patientName(p)}</p>
+                          <p className="text-xs text-gray-400 truncate">{p.email}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{patientName(p)}</p>
-                        <p className="text-xs text-gray-400">{p.email}</p>
-                      </div>
+                      <svg className="w-4 h-4 text-gray-400 shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      {/* Glucose */}
+                    <div className="flex flex-wrap gap-2 mt-3 ml-13">
                       {p.latest_glucose && (
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${statusBadge[getGlucemiaStatus(p.latest_glucose.value)]}`}>
                           🩸 {p.latest_glucose.value} mg/dL
                         </span>
                       )}
-                      {/* BP */}
                       {p.latest_bp && (
                         <span className={`px-2 py-1 rounded-lg text-xs font-medium ${statusBadge[getSystolicStatus(p.latest_bp.value)]}`}>
                           💓 {p.latest_bp.value}/{diastolic ?? "?"} mmHg
                         </span>
                       )}
-                      {/* Weight */}
                       {p.latest_weight && (
                         <span className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700">
                           ⚖️ {p.latest_weight.value} kg
                         </span>
                       )}
-                      {/* Unread alerts */}
                       {Number(p.unread_alerts) > 0 && (
                         <span className="px-2 py-1 rounded-lg text-xs font-medium bg-red-100 text-red-700">
                           ⚠️ {p.unread_alerts}
                         </span>
                       )}
-                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </div>
                   </div>
                 );
