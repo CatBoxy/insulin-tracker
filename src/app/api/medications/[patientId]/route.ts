@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-middleware";
-import pool from "@/lib/db";
+import * as medicationsService from "@/services/medications.service";
 
 export async function GET(
   request: NextRequest,
@@ -19,17 +19,8 @@ export async function GET(
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
 
-    const { rows } = await pool.query(
-      `SELECT p.id, p.status, p.notes, p.created_at, p.expires_at,
-              pi.medication_name, pi.dosage, pi.frequency, pi.instructions
-       FROM prescriptions p
-       JOIN prescription_items pi ON pi.prescription_id = p.id
-       WHERE p.patient_id = $1 AND p.status = 'active'
-       ORDER BY p.created_at DESC`,
-      [pid]
-    );
-
-    return NextResponse.json({ medications: rows });
+    const medications = await medicationsService.listForPatientDetailed(pid);
+    return NextResponse.json({ medications });
   } catch (err) {
     if (err instanceof Response) return err;
     console.error("Get medications error:", err);

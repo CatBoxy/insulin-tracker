@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hashPassword, signToken } from "@/lib/auth";
-import pool from "@/lib/db";
 import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
+import * as authService from "@/services/auth.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,30 +15,15 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
+
     const { email, password } = parsed.data;
 
-    const existing = await pool.query(
-      "SELECT id FROM users WHERE email = $1",
-      [email.toLowerCase()]
-    );
-    if (existing.rows.length > 0) {
+    if (await authService.emailExists(email)) {
       return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });
     }
 
-    const password_hash = await hashPassword(password);
-
-    const { rows } = await pool.query(
-      "INSERT INTO users (email, password_hash, role, first_name, last_name) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role",
-      [email.toLowerCase(), password_hash, "patient", email.split("@")[0], ""]
-    );
-
-    const user = rows[0];
-
-    // Auto-create patient record so they can log measurements immediately
-    await pool.query("INSERT INTO patients (user_id) VALUES ($1)", [user.id]);
-
-    // Auto-login: sign JWT and set cookie
-    const token = await signToken({ sub: user.id, email: user.email, role: user.role });
+    const user = await authService.createPatientUser(email, password);
+    const token = await authService.createToken(user);
 
     const response = NextResponse.json({ user }, { status: 201 });
     response.cookies.set("token", token, {
