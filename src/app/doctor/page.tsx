@@ -45,6 +45,8 @@ export default function DoctorDashboard() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [upcomingAppts, setUpcomingAppts] = useState<{ id: number; patient_id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; patient_email: string; patient_first_name: string | null; patient_last_name: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [qrData, setQrData] = useState<{ code: string; qr: string; url: string } | null>(null);
+  const [showQr, setShowQr] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -129,6 +131,33 @@ export default function DoctorDashboard() {
             <p className="text-2xl font-bold text-green-600">{sorted.filter(p => worstStatus(p) === "normal").length}</p>
             <p className="text-xs text-gray-500">Normal</p>
           </div>
+        </div>
+
+        {/* QR Code Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800">🔗 Mi Código QR</h3>
+            <button
+              onClick={async () => {
+                if (!qrData) {
+                  const res = await fetch("/api/doctors/qr", { credentials: "include" });
+                  if (res.ok) setQrData(await res.json());
+                }
+                setShowQr(!showQr);
+              }}
+              className="text-sm text-primary-600 font-medium hover:underline"
+            >
+              {showQr ? "Ocultar" : "Mostrar"}
+            </button>
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Tus pacientes pueden escanear este código para registrarse y vincularse con vos.</p>
+          {showQr && qrData && (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              <img src={qrData.qr} alt="QR Code" className="w-48 h-48" />
+              <p className="text-sm text-gray-600">Código: <span className="font-mono font-bold text-gray-800">{qrData.code}</span></p>
+              <p className="text-xs text-gray-400 text-center break-all">{qrData.url}</p>
+            </div>
+          )}
         </div>
 
         {/* Upcoming appointments */}

@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths
-  if (pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/register") || pathname.startsWith("/_next") || pathname.startsWith("/sw.js") || pathname.startsWith("/manifest") || pathname.startsWith("/favicon") || pathname.startsWith("/icon")) {
+  if (pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/doctors/by-code") || pathname.startsWith("/_next") || pathname.startsWith("/sw.js") || pathname.startsWith("/manifest") || pathname.startsWith("/favicon") || pathname.startsWith("/icon")) {
     return NextResponse.next();
   }
 

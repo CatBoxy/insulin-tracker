@@ -1,14 +1,19 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
+  return <Suspense><LoginContent /></Suspense>;
+}
+
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const doctorCode = searchParams.get("doctor");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,10 +27,9 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al iniciar sesión"); return; }
-      // Use window.location for full page navigation to ensure cookie is picked up
       if (data.user.role === "admin") window.location.href = "/admin";
       else if (data.user.role === "doctor") window.location.href = "/doctor";
-      else window.location.href = "/dashboard";
+      else window.location.href = doctorCode ? `/dashboard?doctor=${doctorCode}` : "/dashboard";
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
   }
@@ -60,7 +64,7 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-center text-sm text-gray-500 mt-6">
-          No tenés cuenta? <Link href="/register" className="text-primary-600 font-medium hover:underline">Registrate</Link>
+          No tenés cuenta? <Link href={`/register${doctorCode ? `?doctor=${doctorCode}` : ""}`} className="text-primary-600 font-medium hover:underline">Registrate</Link>
         </p>
       </div>
     </div>

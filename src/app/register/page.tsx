@@ -1,13 +1,40 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function RegisterPage() {
+  return <Suspense><RegisterContent /></Suspense>;
+}
+
+function RegisterContent() {
+  const searchParams = useSearchParams();
+  const doctorCode = searchParams.get("doctor");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [doctorName, setDoctorName] = useState<string | null>(null);
+
+  useEffect(() => {
+    // If already logged in and has doctor code, redirect to dashboard with code
+    fetch("/api/auth/me", { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.user) {
+          window.location.href = doctorCode ? `/dashboard?doctor=${doctorCode}` : "/dashboard";
+        }
+      })
+      .catch(() => {});
+
+    if (doctorCode) {
+      fetch(`/api/doctors/by-code?code=${doctorCode}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.doctor) setDoctorName(d.doctor.name); })
+        .catch(() => {});
+    }
+  }, [doctorCode]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,11 +51,10 @@ export default function RegisterPage() {
         credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, doctorCode: doctorCode || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al registrarse"); return; }
-      // Auto-logged in, redirect to dashboard
       window.location.href = "/dashboard";
     } catch { setError("Error de conexión"); }
     finally { setLoading(false); }
@@ -46,6 +72,13 @@ export default function RegisterPage() {
           <h1 className="text-3xl font-bold text-gray-800">Nivelo</h1>
           <p className="text-gray-500 mt-1">Creá tu cuenta</p>
         </div>
+
+        {doctorName && (
+          <div className="bg-primary-50 border border-primary-200 text-primary-700 p-3 rounded-xl text-sm mb-4 text-center">
+            Te vas a vincular con <span className="font-semibold">Dr. {doctorName}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
           <div>
@@ -65,11 +98,11 @@ export default function RegisterPage() {
           </div>
           <button type="submit" disabled={loading}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
-            {loading ? "Creando cuenta..." : "Registrarse"}
+            {loading ? "Creando cuenta..." : doctorCode ? "Registrarse y vincularse" : "Registrarse"}
           </button>
         </form>
         <p className="text-center text-sm text-gray-500 mt-6">
-          Ya tenés cuenta? <Link href="/login" className="text-primary-600 font-medium hover:underline">Iniciar sesión</Link>
+          Ya tenés cuenta? <Link href={`/login${doctorCode ? `?doctor=${doctorCode}` : ""}`} className="text-primary-600 font-medium hover:underline">Iniciar sesión</Link>
         </p>
       </div>
     </div>
