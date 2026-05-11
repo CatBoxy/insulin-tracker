@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { getGlucemiaStatus, getSystolicStatus, type VitalStatus } from "@/lib/thresholds";
+import CheckupStatusBadge from "@/components/checkups/CheckupStatusBadge";
 
 const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
@@ -80,13 +81,15 @@ export default function PatientDetailPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions" | "appointments">("vitals");
+  const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions" | "appointments" | "seguimiento">("vitals");
   const [showApptForm, setShowApptForm] = useState(false);
   const [apptDate, setApptDate] = useState("");
   const [apptTime, setApptTime] = useState("09:00");
   const [apptDuration, setApptDuration] = useState("30");
   const [apptType, setApptType] = useState("in_person");
   const [apptReason, setApptReason] = useState("");
+  const [apptCheckupTypeId, setApptCheckupTypeId] = useState("");
+  const [checkupTypes, setCheckupTypes] = useState<Array<{ id: number; code: string; display_name_es: string }>>([]);
   const [apptMsg, setApptMsg] = useState("");
 
   const load = useCallback(async () => {
@@ -99,6 +102,13 @@ export default function PatientDetailPage() {
       setAlerts(data.alerts || []);
       setPrescriptions(data.prescriptions || []);
       setAppointments(data.appointments || []);
+
+      // Load checkup types for appointment form
+      const ctRes = await fetch("/api/checkup-types", { credentials: "include" }).catch(() => null);
+      if (ctRes?.ok) {
+        const ctData = await ctRes.json();
+        setCheckupTypes(ctData.types || []);
+      }
     } catch { router.push("/doctor"); }
     finally { setLoading(false); }
   }, [patientId, router]);
@@ -173,10 +183,10 @@ export default function PatientDetailPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 flex-wrap">
-          {(["vitals", "alerts", "prescriptions", "appointments"] as const).map(t => (
+          {(["vitals", "alerts", "prescriptions", "appointments", "seguimiento"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition ${tab === t ? "bg-primary-500 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
-              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})`}
+              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : t === "appointments" ? `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})` : `🩺 Seguimiento`}
             </button>
           ))}
         </div>
@@ -367,18 +377,30 @@ export default function PatientDetailPage() {
                   <input type="text" value={apptReason} onChange={e => setApptReason(e.target.value)} placeholder="Control trimestral..."
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
+                {checkupTypes.length > 0 && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Tipo de control (opcional)</label>
+                    <select value={apptCheckupTypeId} onChange={e => setApptCheckupTypeId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="">Sin tipo de control</option>
+                      {checkupTypes.map(ct => (
+                        <option key={ct.id} value={ct.id}>{ct.display_name_es}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {apptMsg && <p className="text-sm text-green-600">{apptMsg}</p>}
                 <button disabled={!apptDate} onClick={async () => {
                   const scheduled_at = new Date(`${apptDate}T${apptTime}`).toISOString();
                   const res = await fetch("/api/appointments", {
                     method: "POST", credentials: "include",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ patient_id: Number(patientId), scheduled_at, duration_minutes: Number(apptDuration), type: apptType, reason: apptReason || null }),
+                    body: JSON.stringify({ patient_id: Number(patientId), scheduled_at, duration_minutes: Number(apptDuration), type: apptType, reason: apptReason || null, ...(apptCheckupTypeId ? { checkup_type_id: Number(apptCheckupTypeId) } : {}) }),
                   });
                   if (res.ok) {
                     setApptMsg("Cita creada");
                     setShowApptForm(false);
-                    setApptDate(""); setApptReason("");
+                    setApptDate(""); setApptReason(""); setApptCheckupTypeId("");
                     load();
                   } else {
                     const d = await res.json();
@@ -436,7 +458,245 @@ export default function PatientDetailPage() {
             )}
           </div>
         )}
+
+        {tab === "seguimiento" && (
+          <DoctorCheckupPanel patientId={patientId} onReload={load} />
+        )}
       </main>
+    </div>
+  );
+}
+
+interface DoctorCheckupItem {
+  id: number;
+  code: string;
+  display_name_es: string;
+  category: string;
+  frequency_months: number | null;
+  last_completed_at: string | null;
+  next_due_at: string | null;
+  status: string;
+  days_until_due: number | null;
+  active: boolean;
+}
+
+function getRelativeLabel(nextDueAt: string | null, status: string): string {
+  if (!nextDueAt) return "";
+  const now = new Date();
+  const due = new Date(nextDueAt);
+  const diffMs = due.getTime() - now.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (status === "atrasado") {
+    const absDays = Math.abs(diffDays);
+    if (absDays < 30) return `Venció hace ${absDays} días`;
+    const months = Math.round(absDays / 30);
+    return `Venció hace ${months} ${months === 1 ? "mes" : "meses"}`;
+  }
+  if (status === "proximo") {
+    const fecha = due.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+    return `En ${diffDays} días · ${fecha}`;
+  }
+  const fecha = due.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+  return `Próximo: ${fecha}`;
+}
+
+function getCategoryEmoji(category: string): string {
+  switch (category) { case "specialist": return "🩺"; case "lab": return "🧪"; case "imaging": return "📷"; default: return "🍎"; }
+}
+
+function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onReload: () => void }) {
+  const [checkups, setCheckups] = useState<DoctorCheckupItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [freqOverride, setFreqOverride] = useState("");
+  const [completeId, setCompleteId] = useState<number | null>(null);
+  const [completeDate, setCompleteDate] = useState(new Date().toISOString().split("T")[0]);
+  const [completeNotes, setCompleteNotes] = useState("");
+  const [msg, setMsg] = useState("");
+  const [msgType, setMsgType] = useState<"success" | "critical">("success");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const loadCheckups = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/doctor/patient/${patientId}/checkups`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setCheckups(data.checkups || []);
+      }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [patientId]);
+
+  useEffect(() => { loadCheckups(); }, [loadCheckups]);
+
+  async function handleToggleActive(item: DoctorCheckupItem) {
+    setActionLoading(true); setMsg("");
+    try {
+      const res = await fetch(`/api/doctor/patient/${patientId}/checkups/${item.id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !item.active }),
+      });
+      if (res.ok) {
+        setMsg(item.active ? "Control desactivado" : "Control reactivado");
+        setMsgType("success");
+        loadCheckups();
+      } else {
+        const d = await res.json();
+        setMsg(d.error || "Error"); setMsgType("critical");
+      }
+    } catch { setMsg("Error de conexión"); setMsgType("critical"); }
+    finally { setActionLoading(false); }
+  }
+
+  async function handleFreqSave(item: DoctorCheckupItem) {
+    setActionLoading(true); setMsg("");
+    const val = freqOverride === "" ? null : parseInt(freqOverride, 10);
+    try {
+      const res = await fetch(`/api/doctor/patient/${patientId}/checkups/${item.id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frequency_months_override: val }),
+      });
+      if (res.ok) {
+        setMsg("Frecuencia actualizada"); setMsgType("success");
+        setEditingId(null);
+        loadCheckups();
+      } else {
+        const d = await res.json();
+        setMsg(d.error || "Error"); setMsgType("critical");
+      }
+    } catch { setMsg("Error de conexión"); setMsgType("critical"); }
+    finally { setActionLoading(false); }
+  }
+
+  async function handleComplete(item: DoctorCheckupItem) {
+    setActionLoading(true); setMsg("");
+    try {
+      const date = new Date(completeDate + "T00:00:00-03:00");
+      const res = await fetch(`/api/doctor/patient/${patientId}/checkups/${item.id}/complete`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed_at: date.toISOString(), notes: completeNotes || undefined }),
+      });
+      if (res.ok) {
+        setMsg("Control registrado"); setMsgType("success");
+        setCompleteId(null); setCompleteNotes("");
+        loadCheckups();
+        onReload();
+      } else {
+        const d = await res.json();
+        setMsg(d.error || "Error"); setMsgType("critical");
+      }
+    } catch { setMsg("Error de conexión"); setMsgType("critical"); }
+    finally { setActionLoading(false); }
+  }
+
+  if (loading) return <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-primary-500 border-t-transparent rounded-full" /></div>;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 className="font-semibold text-gray-800 mb-4">🩺 Seguimiento Médico</h3>
+      {msg && (
+        <div className={`p-2 rounded-lg text-sm text-center font-medium mb-4 ${msgType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+          {msg}
+        </div>
+      )}
+      {checkups.length === 0 ? <p className="text-gray-400 text-sm">Sin controles configurados</p> : (
+        <div className="space-y-3">
+          {checkups.map(item => (
+            <div key={item.id} className={`p-4 rounded-xl border ${!item.active ? "border-gray-200 opacity-60" : item.status === "atrasado" ? "border-red-200 bg-red-50/30" : "border-gray-100"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg shrink-0">{getCategoryEmoji(item.category)}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-gray-800">{item.display_name_es}</span>
+                      {item.active && <CheckupStatusBadge status={item.status} />}
+                      {!item.active && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Desactivado</span>}
+                    </div>
+                    {item.active && item.next_due_at && item.status !== "sin_registro" && (
+                      <p className={`text-xs mt-0.5 ${item.status === "atrasado" ? "text-red-600" : "text-gray-500"}`}>
+                        {getRelativeLabel(item.next_due_at, item.status)}
+                      </p>
+                    )}
+                    {item.last_completed_at && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Último: {new Date(item.last_completed_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-400">
+                      {item.frequency_months ? `Cada ${item.frequency_months} meses` : "Sin frecuencia fija"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap gap-2 mt-3">
+                {item.active && (
+                  <button onClick={() => { setCompleteId(completeId === item.id ? null : item.id); setEditingId(null); }}
+                    className="text-xs text-primary-600 font-medium hover:underline min-h-[44px] px-2">
+                    Marcar como realizado
+                  </button>
+                )}
+                <button onClick={() => { setEditingId(editingId === item.id ? null : item.id); setCompleteId(null); setFreqOverride(item.frequency_months?.toString() ?? ""); }}
+                  className="text-xs text-blue-600 font-medium hover:underline min-h-[44px] px-2">
+                  Cambiar frecuencia
+                </button>
+                <button onClick={() => handleToggleActive(item)} disabled={actionLoading}
+                  className={`text-xs font-medium hover:underline min-h-[44px] px-2 ${item.active ? "text-red-500" : "text-green-600"}`}>
+                  {item.active ? "Desactivar control" : "Reactivar control"}
+                </button>
+              </div>
+
+              {/* Inline frequency edit */}
+              {editingId === item.id && (
+                <div className="mt-3 bg-gray-50 rounded-xl p-3 space-y-2">
+                  <label className="block text-xs text-gray-500">Frecuencia (meses)</label>
+                  <div className="flex gap-2">
+                    <input type="number" value={freqOverride} onChange={e => setFreqOverride(e.target.value)}
+                      placeholder="Ej: 3" min="1" max="60"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]" />
+                    <button onClick={() => handleFreqSave(item)} disabled={actionLoading}
+                      className="px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 min-h-[44px]">
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditingId(null)}
+                      className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg min-h-[44px]">
+                      Cancelar
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400">Dejá vacío para usar la frecuencia por defecto</p>
+                </div>
+              )}
+
+              {/* Inline completion form */}
+              {completeId === item.id && (
+                <div className="mt-3 bg-gray-50 rounded-xl p-3 space-y-2">
+                  <label className="block text-xs text-gray-500">¿Cuándo lo hizo?</label>
+                  <input type="date" value={completeDate} onChange={e => setCompleteDate(e.target.value)}
+                    max={new Date().toISOString().split("T")[0]}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]" />
+                  <label className="block text-xs text-gray-500">Notas (opcional)</label>
+                  <textarea value={completeNotes} onChange={e => setCompleteNotes(e.target.value)} rows={2}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleComplete(item)} disabled={!completeDate || actionLoading}
+                      className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 min-h-[44px]">
+                      Guardar
+                    </button>
+                    <button onClick={() => setCompleteId(null)}
+                      className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg min-h-[44px]">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

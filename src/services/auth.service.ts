@@ -42,9 +42,15 @@ export async function createUser(input: CreateUserInput) {
   const user = rows[0];
 
   if (role === "patient") {
-    await pool.query(
-      "INSERT INTO patients (user_id, date_of_birth, gender) VALUES ($1, $2, $3)",
+    const { rows: patientRows } = await pool.query(
+      "INSERT INTO patients (user_id, date_of_birth, gender) VALUES ($1, $2, $3) RETURNING id",
       [user.id, date_of_birth || null, gender || null]
+    );
+    // Auto-provision checkup tracking for the new patient
+    await pool.query(
+      `INSERT INTO patient_checkups (patient_id, checkup_type_id)
+       SELECT $1, id FROM checkup_types`,
+      [patientRows[0].id]
     );
   } else if (role === "doctor") {
     await pool.query("INSERT INTO doctors (user_id) VALUES ($1)", [user.id]);

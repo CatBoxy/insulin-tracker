@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { logout } from "@/lib/logout";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import CheckupList from "@/components/checkups/CheckupList";
 
 interface User { id: number; email: string; role: string }
 interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; recorded_at: string }
@@ -33,6 +34,7 @@ function DashboardContent() {
   const [msgType, setMsgType] = useState<"success" | "warning" | "critical">("success");
   const [linkPrompt, setLinkPrompt] = useState<{ code: string; name: string } | null>(null);
   const [linkMsg, setLinkMsg] = useState("");
+  const [checkupNeedsAttention, setCheckupNeedsAttention] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -64,6 +66,17 @@ function DashboardContent() {
       if (apptRes?.ok) {
         const d = await apptRes.json().catch(() => ({}));
         setAppointments(d.appointments || []);
+      }
+
+      // Load checkup status for nav dot
+      const checkupRes = await fetch("/api/checkups", { credentials: "include" }).catch(() => null);
+      if (checkupRes?.ok) {
+        const d = await checkupRes.json().catch(() => ({}));
+        const checkups = d.checkups || [];
+        setCheckupNeedsAttention(
+          d.has_onboarding_pending ||
+          checkups.some((c: { status: string }) => c.status === "atrasado")
+        );
       }
     } catch {
       router.push("/login");
@@ -164,6 +177,12 @@ function DashboardContent() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <a href="/dashboard/seguimiento" className="relative text-sm text-gray-500 hover:text-gray-700">
+              Seguimiento
+              {checkupNeedsAttention && (
+                <span className="absolute -top-1 -right-2 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
+              )}
+            </a>
             <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
             <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
           </div>
@@ -267,6 +286,9 @@ function DashboardContent() {
             </div>
           </div>
         )}
+
+        {/* Seguimiento Médico — compact summary */}
+        <CheckupList variant="compact" />
 
         {/* Quick Log */}
         {msg && <div className={`p-3 rounded-xl text-sm text-center font-medium ${msgType === "success" ? "bg-green-50 text-green-700" : msgType === "warning" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>{msg}</div>}
