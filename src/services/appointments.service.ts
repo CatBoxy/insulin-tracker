@@ -51,14 +51,16 @@ export async function create(input: {
   type?: string;
   reason?: string;
   notes?: string;
+  checkupTypeId?: number;
 }) {
   const { rows } = await pool.query(
-    `INSERT INTO appointments (patient_id, doctor_id, scheduled_at, duration_minutes, location, type, reason, notes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO appointments (patient_id, doctor_id, scheduled_at, duration_minutes, location, type, reason, notes, checkup_type_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
       input.patientId, input.doctorId, input.scheduledAt,
       input.durationMinutes || 30, input.location || null,
       input.type || "in_person", input.reason || null, input.notes || null,
+      input.checkupTypeId || null,
     ]
   );
   return rows[0];
@@ -114,4 +116,47 @@ export async function cancel(id: number) {
     "UPDATE appointments SET status = 'cancelled', updated_at = NOW() WHERE id = $1",
     [id]
   );
+}
+
+/**
+ * When an appointment with a checkup_type_id is completed,
+ * auto-insert a checkup_completions row (idempotent).
+ */
+export async function autoCompleteCheckup(appointmentId: number, completedByUserId: number) {
+  const appt = await findById(appointmentId);
+  if (!appt || !appt.checkup_type_id) return;
+
+  // Find the patient_checkup for this patient + checkup_type
+  const { rows: pcRows } = await pool.query(
+    `SELECT id FROM patient_checkups
+     WHERE patient_id = $1 AND checkup_type_id = $2 AND active = TRUE`,
+    [appt.patient_id, appt.checkup_type_id]
+  );
+  if (pcRows.length === 0) return;
+
+  const pcId = pcRows[0].id;
+  const completedAt = appt.scheduled_at;
+
+  // Idempotency: check for existing completion within ±24h
+  const { rows: existing } = await pool.query(
+    `SELECT id FROM checkup_completions
+     WHERE patient_checkup_id = $1
+       AND completed_at BETWEEN $2::timestamptz - INTERVAL '24 hours'
+                            AND $2::timestamptz + INTERVAL '24 hours'`,
+    [pcId, completedAt]
+  );
+  if (existing.length > 0) return;
+
+  await pool.query(
+    `INSERT INTO checkup_completions (patient_checkup_id, completed_at, appointment_id, reported_by_user_id)
+     VALUES ($1, $2, $3, $4)`,
+    [pcId, completedAt, appointmentId, completedByUserId]
+  );
+}
+
+export async function listCheckupTypes() {
+  const { rows } = await pool.query(
+    "SELECT id, code, display_name_es FROM checkup_types ORDER BY sort_order"
+  );
+  return rows;
 }

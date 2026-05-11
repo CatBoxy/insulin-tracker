@@ -50,6 +50,13 @@ export async function PATCH(
     const updated = await appointmentsService.update(appointmentId, parsed.data);
     if (!updated) return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
 
+    // Auto-complete linked checkup when appointment is marked completed
+    if (parsed.data.status === "completed") {
+      await appointmentsService.autoCompleteCheckup(appointmentId, user.id).catch(err =>
+        console.error("Auto-complete checkup error:", err)
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("PATCH /api/appointments/[id] error:", error);

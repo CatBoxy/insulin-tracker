@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       type: parsed.data.type,
       reason: parsed.data.reason,
       notes: parsed.data.notes,
+      checkupTypeId: parsed.data.checkup_type_id,
     });
 
     return NextResponse.json({ appointment }, { status: 201 });

@@ -76,6 +76,7 @@ export const createAppointmentSchema = z.object({
   type: z.enum(["in_person", "virtual", "phone"]).optional(),
   reason: z.string().max(1000).optional(),
   notes: z.string().max(2000).optional(),
+  checkup_type_id: z.number().int().positive().optional(),
 });
 
 export const updateAppointmentSchema = z.object({
@@ -88,5 +89,25 @@ export const updateAppointmentSchema = z.object({
   notes: z.string().max(2000).optional(),
 }).refine(
   data => Object.values(data).some(v => v !== undefined),
+  { message: "Al menos un campo requerido" }
+);
+
+export const completeCheckupSchema = z.object({
+  completed_at: z.string({ message: "Fecha requerida" }).min(1, "Fecha requerida"),
+  notes: z.string().max(2000).optional(),
+});
+
+export const checkupOnboardingSchema = z.object({
+  entries: z.array(z.object({
+    patient_checkup_id: z.number({ message: "patient_checkup_id requerido" }).int().positive(),
+    last_completed_at: z.string().nullable(),
+  })).min(1, "Al menos una entrada requerida"),
+});
+
+export const updatePatientCheckupSchema = z.object({
+  frequency_months_override: z.number().int().min(1).max(60).nullable().optional(),
+  active: z.boolean().optional(),
+}).refine(
+  data => data.frequency_months_override !== undefined || data.active !== undefined,
   { message: "Al menos un campo requerido" }
 );
