@@ -144,17 +144,33 @@ function DashboardContent() {
 
   const GLUCEMIA_MIN = 30;
   const GLUCEMIA_MAX = 500;
-  const glucemiaData = measurements
+
+  // Group glucemia by day, keep max value per category per day (exclude "random")
+  const glucemiaByDay = new Map<string, { fasting?: number; postprandial?: number; pre_dinner?: number; outlier?: number }>();
+  measurements
     .filter(m => m.type === "glucemia" && m.value)
     .reverse()
-    .map(m => {
+    .forEach(m => {
+      const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
       const isOutlier = m.value < GLUCEMIA_MIN || m.value > GLUCEMIA_MAX;
-      return {
-        date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
-        valor: isOutlier ? undefined : m.value,
-        outlier: isOutlier ? m.value : undefined,
-      };
+      const entry = glucemiaByDay.get(date) || {};
+
+      if (isOutlier) {
+        entry.outlier = Math.max(entry.outlier ?? 0, m.value);
+      } else if (m.context === "random") {
+        // Skip "Al azar" from chart lines
+      } else {
+        const ctx = (m.context || "fasting") as "fasting" | "postprandial" | "pre_dinner";
+        entry[ctx] = Math.max(entry[ctx] ?? 0, m.value);
+      }
+
+      glucemiaByDay.set(date, entry);
     });
+
+  const glucemiaData = Array.from(glucemiaByDay.entries()).map(([date, values]) => ({
+    date,
+    ...values,
+  }));
 
   const bpData = measurements
     .filter(m => m.type === "blood_pressure")
@@ -340,18 +356,27 @@ function DashboardContent() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-800 mb-4">🩸 Glucemia</h3>
           {glucemiaData.length > 1 ? (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={glucemiaData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="date" fontSize={12} />
-                <YAxis fontSize={12} domain={[0, 'auto']} />
-                <Tooltip />
-                <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
-                <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
-                <Line type="monotone" dataKey="valor" stroke="#16a34a" strokeWidth={2} dot={{ r: 4, fill: "#16a34a" }} connectNulls />
-                <Line type="monotone" dataKey="outlier" stroke="none" strokeWidth={0} dot={{ r: 5, fill: "#ef4444", stroke: "#ef4444" }} isAnimationActive={false} legendType="none" />
-              </LineChart>
-            </ResponsiveContainer>
+            <>
+              <div className="flex flex-wrap gap-3 mb-3 text-xs">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> En ayunas</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-orange-500 inline-block rounded" /> Postprandial</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-purple-500 inline-block rounded" /> Antes de cenar</span>
+              </div>
+              <ResponsiveContainer width="100%" height={280}>
+                <LineChart data={glucemiaData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" fontSize={12} />
+                  <YAxis fontSize={12} domain={[0, 'auto']} />
+                  <Tooltip />
+                  <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
+                  <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
+                  <Line type="monotone" dataKey="fasting" name="En ayunas" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: "#3b82f6" }} connectNulls />
+                  <Line type="monotone" dataKey="postprandial" name="Postprandial" stroke="#f97316" strokeWidth={2} dot={{ r: 4, fill: "#f97316" }} connectNulls />
+                  <Line type="monotone" dataKey="pre_dinner" name="Antes de cenar" stroke="#a855f7" strokeWidth={2} dot={{ r: 4, fill: "#a855f7" }} connectNulls />
+                  <Line type="monotone" dataKey="outlier" stroke="none" strokeWidth={0} dot={{ r: 5, fill: "#ef4444", stroke: "#ef4444" }} isAnimationActive={false} legendType="none" name="Outlier" />
+                </LineChart>
+              </ResponsiveContainer>
+            </>
           ) : (
             <p className="text-gray-400 text-sm">Sin registros suficientes para mostrar el gráfico</p>
           )}
