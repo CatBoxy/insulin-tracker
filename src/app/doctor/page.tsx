@@ -89,23 +89,6 @@ export default function DoctorDashboard() {
 
   const handleLogout = () => logout(router);
 
-  async function dismissRequest(requestId: number) {
-    try {
-      const res = await fetch(`/api/doctor/checkup-requests/${requestId}`, {
-        method: "PATCH",
-        credentials: "include",
-      });
-      if (res.ok) {
-        setCheckupRequests(prev => prev.filter(r => r.id !== requestId));
-      }
-    } catch { /* ignore */ }
-  }
-
-  function requestPatientName(r: CheckupRequest) {
-    if (r.patient_first_name || r.patient_last_name) return `${r.patient_first_name || ""} ${r.patient_last_name || ""}`.trim();
-    return r.patient_email.split("@")[0];
-  }
-
   function patientName(p: Patient) {
     if (p.first_name || p.last_name) return `${p.first_name || ""} ${p.last_name || ""}`.trim();
     return p.email.split("@")[0];
@@ -146,6 +129,16 @@ export default function DoctorDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <button onClick={() => router.push("/doctor/notifications")} className="relative p-2 text-gray-500 hover:text-gray-700 transition">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {checkupRequests.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {checkupRequests.length}
+                </span>
+              )}
+            </button>
             <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
             <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
           </div>
@@ -231,54 +224,6 @@ export default function DoctorDashboard() {
                   </div>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* Checkup order requests */}
-        {checkupRequests.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <h3 className="font-semibold text-gray-800">📋 Solicitudes de órdenes</h3>
-              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                {checkupRequests.length}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {checkupRequests.map(r => (
-                <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-100 bg-amber-50/30">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-lg shrink-0">
-                      {r.checkup_category === "lab" ? "\uD83E\uDDEA" : r.checkup_category === "imaging" ? "\uD83D\uDCF7" : "\uD83E\uDE7A"}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-800">
-                        {requestPatientName(r)} solicita orden de <span className="font-semibold">{r.checkup_name}</span>
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <button
-                      onClick={() => router.push(`/doctor/patient/${r.patient_id}`)}
-                      className="px-3 py-1.5 text-xs font-medium text-primary-600 border border-primary-200 rounded-lg hover:bg-primary-50 transition"
-                    >
-                      Ver paciente
-                    </button>
-                    <button
-                      onClick={() => dismissRequest(r.id)}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 transition"
-                      title="Marcar como vista"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         )}
