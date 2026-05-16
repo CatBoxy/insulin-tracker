@@ -5,6 +5,18 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getGlucemiaStatus, getSystolicStatus, type VitalStatus } from "@/lib/thresholds";
 import CheckupStatusBadge from "@/components/checkups/CheckupStatusBadge";
 
+const CONDITION_LABELS: Record<string, string> = {
+  cancer: "Cáncer",
+  hipertension: "Hipertensión",
+  diabetes: "Diabetes",
+  problemas_cardiacos: "Problemas cardíacos",
+  problemas_renales: "Problemas renales",
+  tiroides: "Tiroides",
+  problemas_hepaticos: "Problemas hepáticos",
+  alergia_medicamentos: "Alergia a medicamentos",
+  otros: "Otros",
+};
+
 const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
   warning: "bg-yellow-100 text-yellow-700",
@@ -82,7 +94,8 @@ export default function PatientDetailPage() {
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions" | "appointments" | "seguimiento">("vitals");
+  const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions" | "appointments" | "seguimiento" | "historia">("vitals");
+  const [medicalHistory, setMedicalHistory] = useState<{ familyHistory: Array<{ condition: string; has_condition: boolean; notes: string | null }>; personalHistory: Array<{ condition: string; has_condition: boolean; notes: string | null }>; medications: Array<{ condition: string; medication_text: string }> } | null>(null);
   const [showApptForm, setShowApptForm] = useState(false);
   const [apptDate, setApptDate] = useState("");
   const [apptTime, setApptTime] = useState("09:00");
@@ -104,11 +117,18 @@ export default function PatientDetailPage() {
       setPrescriptions(data.prescriptions || []);
       setAppointments(data.appointments || []);
 
-      // Load checkup types for appointment form
-      const ctRes = await fetch("/api/checkup-types", { credentials: "include" }).catch(() => null);
+      // Load checkup types and medical history
+      const [ctRes, mhRes] = await Promise.all([
+        fetch("/api/checkup-types", { credentials: "include" }).catch(() => null),
+        fetch(`/api/doctor/patient/${patientId}/medical-history`, { credentials: "include" }).catch(() => null),
+      ]);
       if (ctRes?.ok) {
         const ctData = await ctRes.json();
         setCheckupTypes(ctData.types || []);
+      }
+      if (mhRes?.ok) {
+        const mhData = await mhRes.json();
+        setMedicalHistory(mhData);
       }
     } catch { router.push("/doctor"); }
     finally { setLoading(false); }
@@ -213,10 +233,10 @@ export default function PatientDetailPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 flex-wrap">
-          {(["vitals", "alerts", "prescriptions", "appointments", "seguimiento"] as const).map(t => (
+          {(["vitals", "alerts", "prescriptions", "appointments", "seguimiento", "historia"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition ${tab === t ? "bg-primary-500 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
-              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : t === "appointments" ? `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})` : `🩺 Seguimiento`}
+              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : t === "appointments" ? `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})` : t === "seguimiento" ? `🩺 Seguimiento` : `📄 Historia Clínica`}
             </button>
           ))}
         </div>
@@ -498,6 +518,76 @@ export default function PatientDetailPage() {
 
         {tab === "seguimiento" && (
           <DoctorCheckupPanel patientId={patientId} onReload={load} />
+        )}
+
+        {tab === "historia" && (
+          <div className="space-y-4">
+            {!medicalHistory ? (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <p className="text-gray-400 text-sm">El paciente aún no completó su historia clínica</p>
+              </div>
+            ) : (
+              <>
+                {/* Family History */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-800 mb-4">Antecedentes Familiares</h3>
+                  {medicalHistory.familyHistory.filter(f => f.has_condition).length === 0 ? (
+                    <p className="text-sm text-gray-400">Sin antecedentes familiares reportados</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {medicalHistory.familyHistory.filter(f => f.has_condition).map(f => (
+                        <div key={f.condition} className="flex items-start gap-2 p-3 rounded-xl bg-red-50/50 border border-red-100">
+                          <span className="text-red-500 shrink-0 mt-0.5">+</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{CONDITION_LABELS[f.condition] || f.condition}</p>
+                            {f.notes && <p className="text-xs text-gray-500 mt-0.5">{f.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Personal History */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h3 className="font-semibold text-gray-800 mb-4">Antecedentes Personales</h3>
+                  {medicalHistory.personalHistory.filter(p => p.has_condition).length === 0 ? (
+                    <p className="text-sm text-gray-400">Sin antecedentes personales reportados</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {medicalHistory.personalHistory.filter(p => p.has_condition).map(p => (
+                        <div key={p.condition} className="flex items-start gap-2 p-3 rounded-xl bg-amber-50/50 border border-amber-100">
+                          <span className="text-amber-500 shrink-0 mt-0.5">+</span>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{CONDITION_LABELS[p.condition] || p.condition}</p>
+                            {p.notes && <p className="text-xs text-gray-500 mt-0.5">{p.notes}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Medications */}
+                {medicalHistory.medications.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3 className="font-semibold text-gray-800 mb-4">Medicación Actual</h3>
+                    <div className="space-y-2">
+                      {medicalHistory.medications.map((m, i) => (
+                        <div key={i} className="flex items-start gap-2 p-3 rounded-xl bg-blue-50/50 border border-blue-100">
+                          <span className="text-blue-500 shrink-0">💊</span>
+                          <div>
+                            <p className="text-xs text-gray-400">{CONDITION_LABELS[m.condition] || m.condition}</p>
+                            <p className="text-sm text-gray-800">{m.medication_text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
       </main>
     </div>

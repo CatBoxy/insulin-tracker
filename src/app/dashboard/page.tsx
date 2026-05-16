@@ -42,6 +42,16 @@ function DashboardContent() {
       const userData = await userRes.json();
       setUser(userData.user);
 
+      // Check if medical history is completed
+      const historyRes = await fetch("/api/medical-history", { credentials: "include" }).catch(() => null);
+      if (historyRes?.ok) {
+        const historyData = await historyRes.json();
+        if (!historyData.completed) {
+          router.push("/dashboard/historia-clinica");
+          return;
+        }
+      }
+
       // Load other data independently — don't redirect on failure
       const [measRes, alertRes, medRes, apptRes] = await Promise.all([
         fetch("/api/measurements?limit=500", { credentials: "include" }).catch(() => null),
@@ -237,6 +247,7 @@ function DashboardContent() {
                 <span className="absolute -top-1 -right-2 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
               )}
             </a>
+            <a href="/dashboard/historia-clinica" className="text-sm text-gray-500 hover:text-gray-700">Historia Clínica</a>
             <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
             <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
           </div>
