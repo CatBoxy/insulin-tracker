@@ -96,6 +96,22 @@ function DashboardContent() {
   async function logMeasurement(type: string) {
     setLoading(true); setMsg(""); setMsgType("success");
 
+    // Block disabled glucemia categories
+    if (type === "glucemia") {
+      if (glucemiaContext === "fasting" && fastingDisabled) {
+        setMsg("En ayunas no disponible — esperá 20hs desde el último registro postprandial");
+        setMsgType("critical");
+        setLoading(false);
+        return;
+      }
+      if (glucemiaContext === "postprandial" && postprandialDisabled) {
+        setMsg("Postprandial no disponible — esperá 20hs desde el último registro antes de cenar");
+        setMsgType("critical");
+        setLoading(false);
+        return;
+      }
+    }
+
     // Client-side BP validation
     if (type === "blood_pressure") {
       const sys = Number(systolic);
@@ -144,33 +160,50 @@ function DashboardContent() {
 
   const GLUCEMIA_MIN = 30;
   const GLUCEMIA_MAX = 500;
+  const WINDOW_MS = 20 * 60 * 60 * 1000; // 20 hours
 
-  // Group glucemia by day, keep max value per category per day (exclude "random")
-  const glucemiaByDay = new Map<string, { fasting?: number; postprandial?: number; pre_dinner?: number; outlier?: number }>();
+  // Group glucemia by 20h windows, keep max value per category per window (exclude "random")
+  const glucemiaWindows: Array<{ timestamp: number; date: string; fasting?: number; postprandial?: number; pre_dinner?: number; outlier?: number }> = [];
   measurements
     .filter(m => m.type === "glucemia" && m.value)
     .reverse()
     .forEach(m => {
+      const ts = new Date(m.recorded_at).getTime();
       const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
       const isOutlier = m.value < GLUCEMIA_MIN || m.value > GLUCEMIA_MAX;
-      const entry = glucemiaByDay.get(date) || {};
+
+      // Find or create a window for this measurement
+      let window = glucemiaWindows.find(w => Math.abs(ts - w.timestamp) < WINDOW_MS);
+      if (!window) {
+        window = { timestamp: ts, date };
+        glucemiaWindows.push(window);
+      }
 
       if (isOutlier) {
-        entry.outlier = Math.max(entry.outlier ?? 0, m.value);
+        window.outlier = Math.max(window.outlier ?? 0, m.value);
       } else if (m.context === "random") {
         // Skip "Al azar" from chart lines
       } else {
         const ctx = (m.context || "fasting") as "fasting" | "postprandial" | "pre_dinner";
-        entry[ctx] = Math.max(entry[ctx] ?? 0, m.value);
+        window[ctx] = Math.max(window[ctx] ?? 0, m.value);
       }
-
-      glucemiaByDay.set(date, entry);
     });
 
-  const glucemiaData = Array.from(glucemiaByDay.entries()).map(([date, values]) => ({
-    date,
-    ...values,
+  const glucemiaData = glucemiaWindows.map(w => ({
+    date: w.date,
+    fasting: w.fasting,
+    postprandial: w.postprandial,
+    pre_dinner: w.pre_dinner,
+    outlier: w.outlier,
   }));
+
+  // Determine which categories are disabled based on 20h rule
+  const glucemiaMeasurements = measurements.filter(m => m.type === "glucemia");
+  const now = Date.now();
+  const lastPostprandial = glucemiaMeasurements.find(m => m.context === "postprandial");
+  const lastPreDinner = glucemiaMeasurements.find(m => m.context === "pre_dinner");
+  const fastingDisabled = lastPostprandial && (now - new Date(lastPostprandial.recorded_at).getTime()) < WINDOW_MS;
+  const postprandialDisabled = lastPreDinner && (now - new Date(lastPreDinner.recorded_at).getTime()) < WINDOW_MS;
 
   const bpData = measurements
     .filter(m => m.type === "blood_pressure")
@@ -324,10 +357,10 @@ function DashboardContent() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="font-semibold text-gray-800 mb-3">🩸 Glucemia</h3>
             <div className="flex flex-wrap gap-2 mb-3">
-              {([["fasting", "En ayunas"], ["postprandial", "2hs post almuerzo"], ["pre_dinner", "Antes de cenar"], ["random", "Al azar"]] as const).map(([value, label]) => (
-                <label key={value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-sm transition ${glucemiaContext === value ? "border-primary-500 bg-primary-50 text-primary-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+              {([["fasting", "En ayunas", fastingDisabled], ["postprandial", "2hs post almuerzo", postprandialDisabled], ["pre_dinner", "Antes de cenar", false], ["random", "Al azar", false]] as const).map(([value, label, disabled]) => (
+                <label key={value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition ${disabled ? "opacity-40 cursor-not-allowed border-gray-200 text-gray-400" : glucemiaContext === value ? "border-primary-500 bg-primary-50 text-primary-700 cursor-pointer" : "border-gray-200 text-gray-600 hover:border-gray-300 cursor-pointer"}`}>
                   <input type="radio" name="glucemiaContext" value={value} checked={glucemiaContext === value}
-                    onChange={() => setGlucemiaContext(value)} className="sr-only" />
+                    onChange={() => { if (!disabled) setGlucemiaContext(value); }} disabled={!!disabled} className="sr-only" />
                   {label}
                 </label>
               ))}
