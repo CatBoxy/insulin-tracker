@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/rate-limit";
 import { loginSchema } from "@/lib/validation";
 import * as authService from "@/services/auth.service";
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for") || "unknown";
-    if (!rateLimit(`login:${ip}`, 5, 15 * 60 * 1000)) {
-      return NextResponse.json({ error: "Demasiados intentos. Intente más tarde." }, { status: 429 });
-    }
-
     const body = await request.json();
     const parsed = loginSchema.safeParse(body);
     if (!parsed.success) {
