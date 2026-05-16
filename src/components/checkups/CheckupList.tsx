@@ -27,6 +27,7 @@ export default function CheckupList({
   apiBase?: string;
 }) {
   const [checkups, setCheckups] = useState<CheckupItem[]>([]);
+  const [pendingRequestIds, setPendingRequestIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
 
   const url = apiBase
@@ -39,6 +40,7 @@ export default function CheckupList({
       if (res.ok) {
         const data = await res.json();
         setCheckups(data.checkups || []);
+        setPendingRequestIds(data.pending_request_ids || []);
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -82,7 +84,7 @@ export default function CheckupList({
         </div>
         <div className="space-y-3">
           {highlights.map(item => (
-            <CheckupCard key={item.id} item={item} onCompleted={load} />
+            <CheckupCard key={item.id} item={item} onCompleted={load} hasPendingRequest={pendingRequestIds.includes(item.id)} />
           ))}
         </div>
       </div>
@@ -96,7 +98,7 @@ export default function CheckupList({
         grouped[status]?.length ? (
           <CheckupSection key={status} status={status}>
             {grouped[status].map(item => (
-              <CheckupCard key={item.id} item={item} onCompleted={load} />
+              <CheckupCard key={item.id} item={item} onCompleted={load} hasPendingRequest={pendingRequestIds.includes(item.id)} />
             ))}
           </CheckupSection>
         ) : null

@@ -63,9 +63,11 @@ function formatFrequency(months: number | null): string {
 export default function CheckupCard({
   item,
   onCompleted,
+  hasPendingRequest = false,
 }: {
   item: CheckupItem;
   onCompleted: () => void;
+  hasPendingRequest?: boolean;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [completedAt, setCompletedAt] = useState(
@@ -80,6 +82,10 @@ export default function CheckupCard({
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<CompletionEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Request order
+  const [requestPending, setRequestPending] = useState(hasPendingRequest);
+  const [requestLoading, setRequestLoading] = useState(false);
 
   const hasVisits = item.last_completed_at !== null;
 
@@ -139,6 +145,33 @@ export default function CheckupCard({
     finally { setHistoryLoading(false); }
   }
 
+  async function handleRequestOrder() {
+    setRequestLoading(true);
+    try {
+      const res = await fetch(`/api/checkups/${item.id}/request`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setRequestPending(true);
+        setMsg("Orden solicitada. Tu médico fue notificado.");
+        setMsgType("success");
+      } else {
+        const data = await res.json();
+        if (res.status === 409) {
+          setRequestPending(true);
+        }
+        setMsg(data.error || "No pudimos enviar la solicitud.");
+        setMsgType(res.status === 409 ? "success" : "critical");
+      }
+    } catch {
+      setMsg("No pudimos enviar la solicitud. Intentá de nuevo.");
+      setMsgType("critical");
+    } finally {
+      setRequestLoading(false);
+    }
+  }
+
   const lastDate = item.last_completed_at
     ? new Date(item.last_completed_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })
     : null;
@@ -173,28 +206,29 @@ export default function CheckupCard({
       </div>
 
       {/* Actions */}
-      <div className="mt-3 flex gap-2">
-        {!showForm ? (
-          <>
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex-1 py-2.5 text-sm font-medium text-primary-600 border border-primary-200 rounded-xl hover:bg-primary-50 transition min-h-[44px]"
-            >
-              {hasVisits ? "Registrar nueva visita" : "Marcar como realizado"}
-            </button>
-            {hasVisits && (
+      <div className="mt-3 flex flex-col gap-2">
+        <div className="flex gap-2">
+          {!showForm ? (
+            <>
               <button
-                onClick={toggleHistory}
-                className={`px-3 py-2.5 text-sm border rounded-xl transition min-h-[44px] ${showHistory ? "border-primary-300 bg-primary-50 text-primary-600" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
-                title="Ver historial"
+                onClick={() => setShowForm(true)}
+                className="flex-1 py-2.5 text-sm font-medium text-primary-600 border border-primary-200 rounded-xl hover:bg-primary-50 transition min-h-[44px]"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                {hasVisits ? "Registrar nueva visita" : "Marcar como realizado"}
               </button>
-            )}
-          </>
-        ) : (
+              {hasVisits && (
+                <button
+                  onClick={toggleHistory}
+                  className={`px-3 py-2.5 text-sm border rounded-xl transition min-h-[44px] ${showHistory ? "border-primary-300 bg-primary-50 text-primary-600" : "border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                  title="Ver historial"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+              )}
+            </>
+          ) : (
           <div className="w-full bg-gray-50 rounded-xl p-4 space-y-3">
             <h5 className="text-sm font-semibold text-gray-700">Registrar control</h5>
             <div>
@@ -247,6 +281,42 @@ export default function CheckupCard({
                 Cancelar
               </button>
             </div>
+          </div>
+        )}
+        </div>
+        {/* Solicitar orden button */}
+        {!showForm && (
+          <button
+            onClick={handleRequestOrder}
+            disabled={requestPending || requestLoading}
+            className={`w-full py-2.5 text-sm font-medium rounded-xl transition min-h-[44px] flex items-center justify-center gap-2 ${
+              requestPending
+                ? "bg-amber-50 text-amber-600 border border-amber-200 cursor-default"
+                : "text-amber-700 border border-amber-200 hover:bg-amber-50"
+            }`}
+          >
+            {requestLoading ? (
+              <div className="animate-spin w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full" />
+            ) : requestPending ? (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Orden solicitada
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Solicitar orden
+              </>
+            )}
+          </button>
+        )}
+        {msg && !showForm && (
+          <div className={`p-2 rounded-lg text-xs text-center font-medium ${msgType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+            {msg}
           </div>
         )}
       </div>
