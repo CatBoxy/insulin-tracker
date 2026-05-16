@@ -23,6 +23,7 @@ interface Measurement {
   type: string;
   value: number;
   unit: string;
+  context: string | null;
   notes: string | null;
   recorded_at: string;
 }
@@ -125,13 +126,42 @@ export default function PatientDetailPage() {
     ? `${patient.first_name || ""} ${patient.last_name || ""}`.trim()
     : patient.email.split("@")[0];
 
-  const glucoseData = measurements
-    .filter(m => m.type === "glucemia")
+  const GLUCEMIA_MIN = 30;
+  const GLUCEMIA_MAX = 500;
+  const WINDOW_MS = 20 * 60 * 60 * 1000;
+
+  const glucoseWindows: Array<{ timestamp: number; date: string; fasting?: number; postprandial?: number; pre_dinner?: number; outlier?: number }> = [];
+  measurements
+    .filter(m => m.type === "glucemia" && m.value)
     .reverse()
-    .map(m => ({
-      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
-      valor: Number(m.value),
-    }));
+    .forEach(m => {
+      const ts = new Date(m.recorded_at).getTime();
+      const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+      const isOutlier = Number(m.value) < GLUCEMIA_MIN || Number(m.value) > GLUCEMIA_MAX;
+
+      let window = glucoseWindows.find(w => Math.abs(ts - w.timestamp) < WINDOW_MS);
+      if (!window) {
+        window = { timestamp: ts, date };
+        glucoseWindows.push(window);
+      }
+
+      if (isOutlier) {
+        window.outlier = Math.max(window.outlier ?? 0, Number(m.value));
+      } else if (m.context === "random") {
+        // Skip
+      } else {
+        const ctx = (m.context || "fasting") as "fasting" | "postprandial" | "pre_dinner";
+        window[ctx] = Math.max(window[ctx] ?? 0, Number(m.value));
+      }
+    });
+
+  const glucoseData = glucoseWindows.map(w => ({
+    date: w.date,
+    fasting: w.fasting,
+    postprandial: w.postprandial,
+    pre_dinner: w.pre_dinner,
+    outlier: w.outlier,
+  }));
 
   const bpData = measurements
     .filter(m => m.type === "blood_pressure")
@@ -197,16 +227,23 @@ export default function PatientDetailPage() {
             {glucoseData.length > 1 && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="font-semibold text-gray-800 mb-4">🩸 Glucemia</h3>
-                <ResponsiveContainer width="100%" height={250}>
+                <div className="flex flex-wrap gap-3 mb-3 text-xs">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block rounded" /> En ayunas</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-orange-500 inline-block rounded" /> Postprandial</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-purple-500 inline-block rounded" /> Antes de cenar</span>
+                </div>
+                <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={glucoseData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" fontSize={12} />
-                    <YAxis fontSize={12} domain={['dataMin - 10', 'dataMax + 10']} />
+                    <YAxis fontSize={12} domain={[0, 'auto']} />
                     <Tooltip />
                     <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
-                    <ReferenceLine y={200} stroke="#ef4444" strokeDasharray="3 3" label={{ value: "200", position: "right", fontSize: 10 }} />
                     <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
-                    <Line type="monotone" dataKey="valor" stroke="#16a34a" strokeWidth={2} dot={{ r: 4, fill: "#16a34a" }} />
+                    <Line type="monotone" dataKey="fasting" name="En ayunas" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4, fill: "#3b82f6" }} connectNulls />
+                    <Line type="monotone" dataKey="postprandial" name="Postprandial" stroke="#f97316" strokeWidth={2} dot={{ r: 4, fill: "#f97316" }} connectNulls />
+                    <Line type="monotone" dataKey="pre_dinner" name="Antes de cenar" stroke="#a855f7" strokeWidth={2} dot={{ r: 4, fill: "#a855f7" }} connectNulls />
+                    <Line type="monotone" dataKey="outlier" stroke="none" strokeWidth={0} dot={{ r: 5, fill: "#ef4444", stroke: "#ef4444" }} isAnimationActive={false} legendType="none" name="Outlier" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
