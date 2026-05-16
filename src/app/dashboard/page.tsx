@@ -142,10 +142,19 @@ function DashboardContent() {
     return match ? match[1] : "?";
   }
 
+  const GLUCEMIA_MIN = 30;
+  const GLUCEMIA_MAX = 500;
   const glucemiaData = measurements
     .filter(m => m.type === "glucemia" && m.value)
     .reverse()
-    .map(m => ({ date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }), valor: m.value }));
+    .map(m => {
+      const isOutlier = m.value < GLUCEMIA_MIN || m.value > GLUCEMIA_MAX;
+      return {
+        date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
+        valor: isOutlier ? undefined : m.value,
+        outlier: isOutlier ? m.value : undefined,
+      };
+    });
 
   const bpData = measurements
     .filter(m => m.type === "blood_pressure")
@@ -339,7 +348,8 @@ function DashboardContent() {
                 <Tooltip />
                 <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
                 <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
-                <Line type="monotone" dataKey="valor" stroke="#16a34a" strokeWidth={2} dot={{ r: 4, fill: "#16a34a" }} />
+                <Line type="monotone" dataKey="valor" stroke="#16a34a" strokeWidth={2} dot={{ r: 4, fill: "#16a34a" }} connectNulls />
+                <Line type="monotone" dataKey="outlier" stroke="none" strokeWidth={0} dot={{ r: 5, fill: "#ef4444", stroke: "#ef4444" }} isAnimationActive={false} legendType="none" />
               </LineChart>
             </ResponsiveContainer>
           ) : (
