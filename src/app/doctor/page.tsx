@@ -249,7 +249,7 @@ export default function DoctorDashboard() {
                 <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-100 bg-amber-50/30">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-lg shrink-0">
-                      {r.checkup_category === "lab" ? "����" : r.checkup_category === "imaging" ? "📷" : "🩺"}
+                      {r.checkup_category === "lab" ? "\uD83E\uDDEA" : r.checkup_category === "imaging" ? "\uD83D\uDCF7" : "\uD83E\uDE7A"}
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-800">
