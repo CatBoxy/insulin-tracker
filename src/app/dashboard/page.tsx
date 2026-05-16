@@ -44,7 +44,7 @@ function DashboardContent() {
 
       // Load other data independently — don't redirect on failure
       const [measRes, alertRes, medRes, apptRes] = await Promise.all([
-        fetch("/api/measurements", { credentials: "include" }).catch(() => null),
+        fetch("/api/measurements?limit=500", { credentials: "include" }).catch(() => null),
         fetch("/api/alerts", { credentials: "include" }).catch(() => null),
         fetch("/api/medications", { credentials: "include" }).catch(() => null),
         fetch("/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
@@ -155,9 +155,6 @@ function DashboardContent() {
       sistólica: Number(m.value),
       diastólica: Number(getDiastolic(m)),
     }));
-
-  const glucemiaMeasurements = measurements.filter(m => m.type === "glucemia");
-  const bpMeasurements = measurements.filter(m => m.type === "blood_pressure");
 
   if (!user) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>;
 
@@ -329,71 +326,46 @@ function DashboardContent() {
           </div>
         </div>
 
-        {/* Glucemia & BP Sections */}
+        {/* Glucemia Chart — full width */}
         <h2 className="text-lg font-bold text-gray-800 mt-2">Historial</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-800 mb-4">🩸 Glucemia</h3>
-          {glucemiaData.length > 1 && (
-            <div className="mb-4">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={glucemiaData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis fontSize={12} domain={[0, 'auto']} />
-                  <Tooltip />
-                  <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
-                  <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
-                  <Line type="monotone" dataKey="valor" stroke="#16a34a" strokeWidth={2} dot={{ r: 4, fill: "#16a34a" }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-          {glucemiaMeasurements.length === 0 ? <p className="text-gray-400 text-sm">Sin registros de glucemia</p> : (
-            <div className="space-y-2">
-              {glucemiaMeasurements.slice(0, 10).map(m => (
-                <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{m.value} mg/dL</p>
-                    {m.context && <p className="text-xs text-gray-400">{{ fasting: "En ayunas", postprandial: "Postprandial", pre_dinner: "Antes de cenar", random: "Al azar" }[m.context] || m.context}</p>}
-                  </div>
-                  <span className="text-xs text-gray-400">{new Date(m.recorded_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-                </div>
-              ))}
-            </div>
+          {glucemiaData.length > 1 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={glucemiaData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" fontSize={12} />
+                <YAxis fontSize={12} domain={[0, 'auto']} />
+                <Tooltip />
+                <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
+                <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
+                <Line type="monotone" dataKey="valor" stroke="#16a34a" strokeWidth={2} dot={{ r: 4, fill: "#16a34a" }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-400 text-sm">Sin registros suficientes para mostrar el gráfico</p>
           )}
         </div>
 
-        {/* Presión Arterial Section */}
+        {/* Presión Arterial Chart — full width */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-800 mb-4">💓 Presión Arterial</h3>
-          {bpData.length > 1 && (
-            <div className="mb-4">
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={bpData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip />
-                  <ReferenceLine y={130} stroke="#eab308" strokeDasharray="3 3" />
-                  <ReferenceLine y={140} stroke="#ef4444" strokeDasharray="3 3" />
-                  <Line type="monotone" dataKey="sistólica" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="diastólica" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          {bpData.length > 1 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={bpData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="date" fontSize={12} />
+                <YAxis fontSize={12} />
+                <Tooltip />
+                <ReferenceLine y={130} stroke="#eab308" strokeDasharray="3 3" />
+                <ReferenceLine y={140} stroke="#ef4444" strokeDasharray="3 3" />
+                <Line type="monotone" dataKey="sistólica" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="diastólica" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-400 text-sm">Sin registros suficientes para mostrar el gráfico</p>
           )}
-          {bpMeasurements.length === 0 ? <p className="text-gray-400 text-sm">Sin registros de presión arterial</p> : (
-            <div className="space-y-2">
-              {bpMeasurements.slice(0, 10).map(m => (
-                <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
-                  <p className="text-sm font-medium text-gray-800">{m.value}/{getDiastolic(m)} mmHg</p>
-                  <span className="text-xs text-gray-400">{new Date(m.recorded_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
         </div>
 
         {/* Medications */}

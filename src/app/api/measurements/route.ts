@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
 
     if (!patientId) return NextResponse.json({ measurements: [] });
 
-    const measurements = await measurementsService.listByPatient(patientId);
+    const limitParam = request.nextUrl.searchParams.get("limit");
+    const limit = limitParam ? Math.min(Number(limitParam), 1000) : 50;
+
+    const measurements = await measurementsService.listByPatient(patientId, limit);
     return NextResponse.json({ measurements });
   } catch (error) {
     console.error("GET /api/measurements error:", error);
