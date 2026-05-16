@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { logout } from "@/lib/logout";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
-import CheckupList from "@/components/checkups/CheckupList";
 
 interface User { id: number; email: string; role: string }
 interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; recorded_at: string }
@@ -287,10 +286,17 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* Seguimiento Médico — compact summary */}
-        <CheckupList variant="compact" />
+        {/* Seguimiento Médico — link */}
+        {checkupNeedsAttention && (
+          <a href="/dashboard/seguimiento" className="flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100 hover:bg-blue-100 transition">
+            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shrink-0" />
+            <p className="text-sm text-blue-700">Tenés controles médicos pendientes de revisar</p>
+            <svg className="w-4 h-4 text-blue-400 ml-auto shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          </a>
+        )}
 
         {/* Quick Log */}
+        <h2 className="text-lg font-bold text-gray-800 mt-2">Registrar medición</h2>
         {msg && <div className={`p-3 rounded-xl text-sm text-center font-medium ${msgType === "success" ? "bg-green-50 text-green-700" : msgType === "warning" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>{msg}</div>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -324,6 +330,7 @@ function DashboardContent() {
         </div>
 
         {/* Glucemia & BP Sections */}
+        <h2 className="text-lg font-bold text-gray-800 mt-2">Historial</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-semibold text-gray-800 mb-4">🩸 Glucemia</h3>
@@ -333,7 +340,7 @@ function DashboardContent() {
                 <LineChart data={glucemiaData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" fontSize={12} />
-                  <YAxis fontSize={12} domain={["dataMin - 10", "dataMax + 10"]} />
+                  <YAxis fontSize={12} domain={[0, 'auto']} />
                   <Tooltip />
                   <ReferenceLine y={140} stroke="#eab308" strokeDasharray="3 3" label={{ value: "140", position: "right", fontSize: 10 }} />
                   <ReferenceLine y={70} stroke="#eab308" strokeDasharray="3 3" label={{ value: "70", position: "right", fontSize: 10 }} />
