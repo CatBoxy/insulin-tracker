@@ -24,7 +24,7 @@ export const measurementSchema = z.object({
   value: z.number().optional(),
   systolic: z.number().min(40).max(300).optional(),
   diastolic: z.number().min(20).max(200).optional(),
-  context: z.enum(["fasting", "postprandial", "pre_dinner"]).optional(),
+  context: z.enum(["fasting", "postprandial", "pre_dinner", "random"]).optional(),
   notes: z.string().optional(),
 }).refine(
   data => data.type !== "blood_pressure" || (!!data.systolic && !!data.diastolic),

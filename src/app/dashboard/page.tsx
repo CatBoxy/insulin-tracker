@@ -26,7 +26,7 @@ function DashboardContent() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [glucemia, setGlucemia] = useState("");
-  const [glucemiaContext, setGlucemiaContext] = useState<"fasting" | "postprandial" | "pre_dinner">("fasting");
+  const [glucemiaContext, setGlucemiaContext] = useState<"fasting" | "postprandial" | "pre_dinner" | "random">("fasting");
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
   const [loading, setLoading] = useState(false);
@@ -296,7 +296,7 @@ function DashboardContent() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="font-semibold text-gray-800 mb-3">🩸 Glucemia</h3>
             <div className="flex flex-wrap gap-2 mb-3">
-              {([["fasting", "En ayunas"], ["postprandial", "2hs post almuerzo"], ["pre_dinner", "Antes de cenar"]] as const).map(([value, label]) => (
+              {([["fasting", "En ayunas"], ["postprandial", "2hs post almuerzo"], ["pre_dinner", "Antes de cenar"], ["random", "Al azar"]] as const).map(([value, label]) => (
                 <label key={value} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-sm transition ${glucemiaContext === value ? "border-primary-500 bg-primary-50 text-primary-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
                   <input type="radio" name="glucemiaContext" value={value} checked={glucemiaContext === value}
                     onChange={() => setGlucemiaContext(value)} className="sr-only" />
@@ -348,7 +348,7 @@ function DashboardContent() {
                 <div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-gray-800">{m.value} mg/dL</p>
-                    {m.context && <p className="text-xs text-gray-400">{{ fasting: "En ayunas", postprandial: "Postprandial", pre_dinner: "Antes de cenar" }[m.context] || m.context}</p>}
+                    {m.context && <p className="text-xs text-gray-400">{{ fasting: "En ayunas", postprandial: "Postprandial", pre_dinner: "Antes de cenar", random: "Al azar" }[m.context] || m.context}</p>}
                   </div>
                   <span className="text-xs text-gray-400">{new Date(m.recorded_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                 </div>

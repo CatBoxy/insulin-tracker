@@ -1,4 +1,4 @@
-export type MeasurementContext = "fasting" | "postprandial" | "pre_dinner";
+export type MeasurementContext = "fasting" | "postprandial" | "pre_dinner" | "random";
 
 export type VitalStatus = "normal" | "warning" | "critical" | "emergency";
 
@@ -10,6 +10,7 @@ export const GLUCOSE_THRESHOLDS: Record<MeasurementContext, {
   fasting: { warningHigh: 140, criticalHigh: 180, emergencyHigh: 200 },
   pre_dinner: { warningHigh: 140, criticalHigh: 180, emergencyHigh: 200 },
   postprandial: { warningHigh: 180, criticalHigh: 250, emergencyHigh: 300 },
+  random: { warningHigh: 180, criticalHigh: 250, emergencyHigh: 300 },
 };
 
 export const THRESHOLDS = {
@@ -76,4 +77,5 @@ export const CONTEXT_LABELS: Record<MeasurementContext, string> = {
   fasting: "En ayunas",
   postprandial: "2hs después de almuerzo",
   pre_dinner: "Antes de cenar",
+  random: "Al azar",
 };
