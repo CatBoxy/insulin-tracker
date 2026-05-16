@@ -504,8 +504,17 @@ function getCategoryEmoji(category: string): string {
   switch (category) { case "specialist": return "🩺"; case "lab": return "🧪"; case "imaging": return "📷"; default: return "🍎"; }
 }
 
+interface CheckupRequestItem {
+  id: number;
+  patient_checkup_id: number;
+  checkup_name: string;
+  checkup_category: string;
+  created_at: string;
+}
+
 function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onReload: () => void }) {
   const [checkups, setCheckups] = useState<DoctorCheckupItem[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<CheckupRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [freqOverride, setFreqOverride] = useState("");
@@ -518,10 +527,20 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
 
   const loadCheckups = useCallback(async () => {
     try {
-      const res = await fetch(`/api/doctor/patient/${patientId}/checkups`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
+      const [checkupsRes, requestsRes] = await Promise.all([
+        fetch(`/api/doctor/patient/${patientId}/checkups`, { credentials: "include" }),
+        fetch("/api/doctor/checkup-requests", { credentials: "include" }).catch(() => null),
+      ]);
+      if (checkupsRes.ok) {
+        const data = await checkupsRes.json();
         setCheckups(data.checkups || []);
+      }
+      if (requestsRes?.ok) {
+        const rd = await requestsRes.json();
+        // Filter to only show requests for this patient
+        const allRequests: CheckupRequestItem[] = (rd.requests || [])
+          .filter((r: { patient_id: number }) => r.patient_id === Number(patientId));
+        setPendingRequests(allRequests);
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -592,17 +611,65 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
     finally { setActionLoading(false); }
   }
 
+  async function dismissRequest(requestId: number) {
+    try {
+      const res = await fetch(`/api/doctor/checkup-requests/${requestId}`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setPendingRequests(prev => prev.filter(r => r.id !== requestId));
+      }
+    } catch { /* ignore */ }
+  }
+
   if (loading) return <div className="flex justify-center py-8"><div className="animate-spin w-6 h-6 border-3 border-primary-500 border-t-transparent rounded-full" /></div>;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h3 className="font-semibold text-gray-800 mb-4">🩺 Seguimiento Médico</h3>
-      {msg && (
-        <div className={`p-2 rounded-lg text-sm text-center font-medium mb-4 ${msgType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-          {msg}
+    <div className="space-y-4">
+      {/* Pending order requests */}
+      {pendingRequests.length > 0 && (
+        <div className="bg-amber-50 rounded-2xl border border-amber-200 p-4">
+          <h4 className="text-sm font-semibold text-amber-800 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Solicitudes de órdenes pendientes
+          </h4>
+          <div className="space-y-2">
+            {pendingRequests.map(r => (
+              <div key={r.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">
+                    {r.checkup_category === "lab" ? "🧪" : r.checkup_category === "imaging" ? "📷" : "🩺"}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{r.checkup_name}</p>
+                    <p className="text-xs text-gray-400">
+                      Solicitado el {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => dismissRequest(r.id)}
+                  className="px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-300 rounded-lg hover:bg-amber-100 transition"
+                >
+                  Marcar como vista
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
-      {checkups.length === 0 ? <p className="text-gray-400 text-sm">Sin controles configurados</p> : (
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h3 className="font-semibold text-gray-800 mb-4">🩺 Seguimiento Médico</h3>
+        {msg && (
+          <div className={`p-2 rounded-lg text-sm text-center font-medium mb-4 ${msgType === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+            {msg}
+          </div>
+        )}
+        {checkups.length === 0 ? <p className="text-gray-400 text-sm">Sin controles configurados</p> : (
         <div className="space-y-3">
           {checkups.map(item => (
             <div key={item.id} className={`p-4 rounded-xl border ${!item.active ? "border-gray-200 opacity-60" : item.status === "atrasado" ? "border-red-200 bg-red-50/30" : "border-gray-100"}`}>
@@ -697,6 +764,7 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

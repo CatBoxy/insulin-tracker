@@ -20,6 +20,20 @@ interface Patient {
   unread_alerts: string;
 }
 
+interface CheckupRequest {
+  id: number;
+  patient_checkup_id: number;
+  patient_id: number;
+  status: string;
+  created_at: string;
+  checkup_code: string;
+  checkup_name: string;
+  checkup_category: string;
+  patient_first_name: string | null;
+  patient_last_name: string | null;
+  patient_email: string;
+}
+
 const statusBadge: Record<VitalStatus, string> = {
   normal: "bg-green-100 text-green-700",
   warning: "bg-yellow-100 text-yellow-700",
@@ -44,15 +58,17 @@ export default function DoctorDashboard() {
   const router = useRouter();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [upcomingAppts, setUpcomingAppts] = useState<{ id: number; patient_id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; patient_email: string; patient_first_name: string | null; patient_last_name: string | null }[]>([]);
+  const [checkupRequests, setCheckupRequests] = useState<CheckupRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [qrData, setQrData] = useState<{ code: string; qr: string; url: string } | null>(null);
   const [showQr, setShowQr] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [patientsRes, apptsRes] = await Promise.all([
+      const [patientsRes, apptsRes, requestsRes] = await Promise.all([
         fetch("/api/doctor/patients", { credentials: "include" }),
         fetch("/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
+        fetch("/api/doctor/checkup-requests", { credentials: "include" }).catch(() => null),
       ]);
       if (!patientsRes.ok) { router.push("/login"); return; }
       const data = await patientsRes.json();
@@ -61,6 +77,10 @@ export default function DoctorDashboard() {
         const ad = await apptsRes.json().catch(() => ({}));
         setUpcomingAppts(ad.appointments || []);
       }
+      if (requestsRes?.ok) {
+        const rd = await requestsRes.json().catch(() => ({}));
+        setCheckupRequests(rd.requests || []);
+      }
     } catch { router.push("/login"); }
     finally { setLoading(false); }
   }, [router]);
@@ -68,6 +88,23 @@ export default function DoctorDashboard() {
   useEffect(() => { load(); }, [load]);
 
   const handleLogout = () => logout(router);
+
+  async function dismissRequest(requestId: number) {
+    try {
+      const res = await fetch(`/api/doctor/checkup-requests/${requestId}`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setCheckupRequests(prev => prev.filter(r => r.id !== requestId));
+      }
+    } catch { /* ignore */ }
+  }
+
+  function requestPatientName(r: CheckupRequest) {
+    if (r.patient_first_name || r.patient_last_name) return `${r.patient_first_name || ""} ${r.patient_last_name || ""}`.trim();
+    return r.patient_email.split("@")[0];
+  }
 
   function patientName(p: Patient) {
     if (p.first_name || p.last_name) return `${p.first_name || ""} ${p.last_name || ""}`.trim();
@@ -194,6 +231,54 @@ export default function DoctorDashboard() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Checkup order requests */}
+        {checkupRequests.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="font-semibold text-gray-800">📋 Solicitudes de órdenes</h3>
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                {checkupRequests.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {checkupRequests.map(r => (
+                <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-100 bg-amber-50/30">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-lg shrink-0">
+                      {r.checkup_category === "lab" ? "����" : r.checkup_category === "imaging" ? "📷" : "🩺"}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-800">
+                        {requestPatientName(r)} solicita orden de <span className="font-semibold">{r.checkup_name}</span>
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <button
+                      onClick={() => router.push(`/doctor/patient/${r.patient_id}`)}
+                      className="px-3 py-1.5 text-xs font-medium text-primary-600 border border-primary-200 rounded-lg hover:bg-primary-50 transition"
+                    >
+                      Ver paciente
+                    </button>
+                    <button
+                      onClick={() => dismissRequest(r.id)}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 transition"
+                      title="Marcar como vista"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
 import { resolvePatientId } from "@/lib/patient-resolve";
 import * as checkupsService from "@/services/checkups.service";
+import * as checkupRequests from "@/services/checkup-requests.service";
 
 export async function GET() {
   try {
@@ -12,7 +13,15 @@ export async function GET() {
     if (!patientId) return NextResponse.json({ error: "Paciente no encontrado" }, { status: 404 });
 
     const result = await checkupsService.listForPatient(patientId);
-    return NextResponse.json(result);
+
+    // Include which checkups have pending order requests
+    const checkupIds = result.checkups.map(c => c.id);
+    const pendingRequestIds = await checkupRequests.listPendingByPatientCheckupIds(checkupIds);
+
+    return NextResponse.json({
+      ...result,
+      pending_request_ids: pendingRequestIds,
+    });
   } catch (error) {
     console.error("GET /api/checkups error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
