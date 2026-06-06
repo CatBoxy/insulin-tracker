@@ -532,7 +532,7 @@ export default function PatientDetailPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <h3 className="font-semibold text-gray-800 mb-4">Antecedentes Familiares</h3>
                   {medicalHistory.familyHistory.filter(f => f.has_condition).length === 0 ? (
-                    <p className="text-sm text-gray-400">Sin antecedentes familiares reportados</p>
+                    <p className="text-sm text-gray-500 italic">Ninguno (seleccionado por el paciente)</p>
                   ) : (
                     <div className="space-y-2">
                       {medicalHistory.familyHistory.filter(f => f.has_condition).map(f => (
@@ -552,7 +552,7 @@ export default function PatientDetailPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <h3 className="font-semibold text-gray-800 mb-4">Antecedentes Personales</h3>
                   {medicalHistory.personalHistory.filter(p => p.has_condition).length === 0 ? (
-                    <p className="text-sm text-gray-400">Sin antecedentes personales reportados</p>
+                    <p className="text-sm text-gray-500 italic">Ninguno (seleccionado por el paciente)</p>
                   ) : (
                     <div className="space-y-2">
                       {medicalHistory.personalHistory.filter(p => p.has_condition).map(p => (
