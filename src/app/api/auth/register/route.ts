@@ -4,6 +4,7 @@ import { registerSchema } from "@/lib/validation";
 import * as authService from "@/services/auth.service";
 import { getDoctorByCode, linkPatientToDoctor } from "@/services/doctor-link.service";
 import { resolvePatientId } from "@/lib/patient-resolve";
+import { sendEmail, welcomeEmailHtml } from "@/services/email.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,6 +44,13 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    // Send welcome email (fire and forget)
+    sendEmail({
+      to: email,
+      subject: "Bienvenido/a a Glycofit",
+      html: welcomeEmailHtml(first_name),
+    }).catch(err => console.error("Welcome email failed:", err));
 
     const response = NextResponse.json({ user, token, linkedDoctor }, { status: 201 });
     response.cookies.set("token", token, {

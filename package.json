@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3008",
-    "build": "next build",
+    "build": "NEXT_PRIVATE_BUILD_WORKER=false next build",
     "start": "next start -p 3008",
     "lint": "next lint",
     "migrate:up": "node-pg-migrate up -m src/db/migrations --database-url-var DATABASE_URL",
@@ -21,6 +21,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^2.12.0",
+    "resend": "^6.12.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
