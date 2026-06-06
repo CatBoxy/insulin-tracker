@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3008",
-    "build": "NEXT_PRIVATE_BUILD_WORKER=false next build",
+    "build": "next build",
     "start": "next start -p 3008",
     "lint": "next lint",
     "migrate:up": "node-pg-migrate up -m src/db/migrations --database-url-var DATABASE_URL",
