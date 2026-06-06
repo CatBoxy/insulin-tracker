@@ -1,5 +1,5 @@
-const CACHE = "nivelo-v1";
-const SHELL = ["/nivelo/", "/nivelo/login", "/nivelo/dashboard", "/nivelo/admin"];
+const CACHE = "nivelo-v2";
+const SHELL = ["/", "/login", "/dashboard"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {}));
@@ -14,6 +14,6 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request).then(r => r || caches.match("/nivelo/")))
+    fetch(e.request).catch(() => caches.match(e.request).then(r => r || caches.match("/")))
   );
 });
