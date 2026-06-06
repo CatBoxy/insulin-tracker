@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const response = NextResponse.json({ user, linkedDoctor }, { status: 201 });
+    const response = NextResponse.json({ user, token, linkedDoctor }, { status: 201 });
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",

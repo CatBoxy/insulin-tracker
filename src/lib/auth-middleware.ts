@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { verifyToken } from "./auth";
 import pool from "./db";
 
@@ -10,8 +10,11 @@ export interface AuthUser {
 }
 
 export async function getAuthUser(): Promise<AuthUser | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
+  const headerStore = await headers();
+  const authHeader = headerStore.get("authorization");
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : (await cookies()).get("token")?.value;
   if (!token) return null;
   try {
     const payload = await verifyToken(token);

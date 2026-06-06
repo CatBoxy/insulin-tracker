@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     const token = await authService.createToken(user);
 
-    const response = NextResponse.json({ user });
+    const response = NextResponse.json({ user, token });
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",
