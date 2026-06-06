@@ -133,7 +133,7 @@ export default function HistoriaClinicaPage() {
       });
 
       if (res.ok) {
-        setMsg("Historia clínica guardada correctamente");
+        setMsg("Antecedentes médicos guardados correctamente");
         setTimeout(() => router.push("/dashboard"), 1500);
       } else {
         const data = await res.json();
@@ -198,7 +198,7 @@ export default function HistoriaClinicaPage() {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div>
-            <h1 className="font-bold text-gray-800">Historia Clínica</h1>
+            <h1 className="font-bold text-gray-800">Antecedentes Médicos</h1>
             <p className="text-xs text-gray-500">Paso {step} de 3</p>
           </div>
         </div>
@@ -218,6 +218,15 @@ export default function HistoriaClinicaPage() {
             <h2 className="text-lg font-bold text-gray-800 mb-1">Antecedentes Familiares</h2>
             <p className="text-sm text-gray-500 mb-6">Indicá si algún familiar tuvo alguna de estas condiciones</p>
             <div className="space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-gray-100">
+                <input
+                  type="checkbox"
+                  checked={!Object.values(familyHistory).some(v => v.checked)}
+                  onChange={() => setFamilyHistory(Object.fromEntries(FAMILY_CONDITIONS.map(c => [c.key, { checked: false, notes: "" }])))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                />
+                <span className="text-sm font-medium text-gray-500 italic">Ninguno</span>
+              </label>
               {FAMILY_CONDITIONS.map(({ key, label }) => (
                 <div key={key}>
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -258,6 +267,15 @@ export default function HistoriaClinicaPage() {
             <h2 className="text-lg font-bold text-gray-800 mb-1">Antecedentes Personales</h2>
             <p className="text-sm text-gray-500 mb-6">Indicá si tenés o tuviste alguna de estas condiciones</p>
             <div className="space-y-4">
+              <label className="flex items-center gap-3 cursor-pointer pb-3 border-b border-gray-100">
+                <input
+                  type="checkbox"
+                  checked={!Object.values(personalHistory).some(v => v.checked)}
+                  onChange={() => setPersonalHistory(Object.fromEntries(PERSONAL_CONDITIONS.map(c => [c.key, { checked: false, notes: "" }])))}
+                  className="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                />
+                <span className="text-sm font-medium text-gray-500 italic">Ninguno</span>
+              </label>
               {PERSONAL_CONDITIONS.map(({ key, label }) => (
                 <div key={key}>
                   <label className="flex items-center gap-3 cursor-pointer">

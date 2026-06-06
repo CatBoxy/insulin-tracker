@@ -236,7 +236,7 @@ export default function PatientDetailPage() {
           {(["vitals", "alerts", "prescriptions", "appointments", "seguimiento", "historia"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition ${tab === t ? "bg-primary-500 text-white" : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"}`}>
-              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : t === "appointments" ? `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})` : t === "seguimiento" ? `🩺 Seguimiento` : `📄 Historia Clínica`}
+              {t === "vitals" ? `📊 Signos Vitales` : t === "alerts" ? `⚠️ Alertas (${alerts.filter(a => !a.read).length})` : t === "prescriptions" ? `📋 Prescripciones` : t === "appointments" ? `📅 Citas (${appointments.filter(a => a.status !== "cancelled").length})` : t === "seguimiento" ? `🩺 Seguimiento` : `📄 Antecedentes Médicos`}
             </button>
           ))}
         </div>
@@ -524,7 +524,7 @@ export default function PatientDetailPage() {
           <div className="space-y-4">
             {!medicalHistory ? (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <p className="text-gray-400 text-sm">El paciente aún no completó su historia clínica</p>
+                <p className="text-gray-400 text-sm">El paciente aún no completó sus antecedentes médicos</p>
               </div>
             ) : (
               <>
