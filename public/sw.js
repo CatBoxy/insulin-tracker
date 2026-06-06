@@ -1,4 +1,4 @@
-const CACHE = "nivelo-v2";
+const CACHE = "glycofit-v1";
 const SHELL = ["/", "/login", "/dashboard"];
 
 self.addEventListener("install", e => {

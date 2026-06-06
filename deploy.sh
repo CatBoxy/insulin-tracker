@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP="nivelo"
+APP="glycofit"
 REMOTE="claude-bot"
 REMOTE_USER="deploy"
 REMOTE_DIR="/home/${REMOTE_USER}/apps/${APP}"

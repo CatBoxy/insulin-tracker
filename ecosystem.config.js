@@ -1,11 +1,11 @@
-// Non-secret config only. Secrets are in /home/deploy/apps/nivelo/.env on the server.
+// Non-secret config only. Secrets are in /home/deploy/apps/glycofit/.env on the server.
 // This file is NOT synced during deploy — the server copy is the source of truth.
 module.exports = {
   apps: [
     {
-      name: "nivelo",
+      name: "glycofit",
       script: "server.js",
-      cwd: "/home/deploy/apps/nivelo",
+      cwd: "/home/deploy/apps/glycofit",
       env: {
         NODE_ENV: "production",
         PORT: 3008,
@@ -15,8 +15,8 @@ module.exports = {
       exec_mode: "fork",
       max_memory_restart: "500M",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
-      error_file: "/home/deploy/logs/nivelo-error.log",
-      out_file: "/home/deploy/logs/nivelo-out.log",
+      error_file: "/home/deploy/logs/glycofit-error.log",
+      out_file: "/home/deploy/logs/glycofit-out.log",
     },
   ],
 };

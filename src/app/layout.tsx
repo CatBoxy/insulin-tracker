@@ -3,7 +3,7 @@ import "./globals.css";
 import SwRegister from "./sw-register";
 
 export const metadata: Metadata = {
-  title: "Nivelo — Tu salud, bajo control",
+  title: "Glycofit — Tu salud, bajo control",
   description: "Plataforma de seguimiento médico para pacientes",
   manifest: "/manifest.json",
 };

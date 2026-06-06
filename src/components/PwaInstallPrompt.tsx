@@ -71,7 +71,7 @@ export default function PwaInstallPrompt() {
       <div className="flex-1 min-w-0">
         {deferredPrompt ? (
           <>
-            <p className="text-sm font-medium text-primary-800">Instalá Nivelo en tu dispositivo</p>
+            <p className="text-sm font-medium text-primary-800">Instalá Glycofit en tu dispositivo</p>
             <p className="text-xs text-primary-600 mt-0.5">Accedé más rápido desde tu pantalla de inicio.</p>
             <div className="flex gap-2 mt-3">
               <button onClick={handleInstall}
@@ -86,7 +86,7 @@ export default function PwaInstallPrompt() {
           </>
         ) : showIosPrompt ? (
           <>
-            <p className="text-sm font-medium text-primary-800">Instalá Nivelo en tu iPhone</p>
+            <p className="text-sm font-medium text-primary-800">Instalá Glycofit en tu iPhone</p>
             <p className="text-xs text-primary-600 mt-0.5">
               Tocá el botón <span className="inline-block align-middle">
                 <svg className="w-4 h-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>

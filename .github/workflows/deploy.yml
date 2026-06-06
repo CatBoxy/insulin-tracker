@@ -36,7 +36,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.DEPLOY_HOST }}
           REMOTE_USER: deploy
           REMOTE_PORT: 2222
-          REMOTE_DIR: /home/deploy/apps/nivelo
+          REMOTE_DIR: /home/deploy/apps/glycofit
           SSH_CMD: ssh -i ~/.ssh/deploy_key -p 2222
         run: |
           # Sync standalone build
@@ -60,7 +60,7 @@ jobs:
           # Restart PM2 (ecosystem.config.js stays on server, not synced)
           ${SSH_CMD} ${REMOTE_USER}@${REMOTE_HOST} '
             export PATH=$PATH:/home/deploy/.local/share/pnpm
-            cd /home/deploy/apps/nivelo
-            pm2 restart nivelo || pm2 start ecosystem.config.js
+            cd /home/deploy/apps/glycofit
+            pm2 restart glycofit || pm2 start ecosystem.config.js
             pm2 save
           '

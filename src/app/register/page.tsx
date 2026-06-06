@@ -99,7 +99,7 @@ function RegisterContent() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-800">Nivelo</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Glycofit</h1>
           <p className="text-gray-500 mt-1">Creá tu cuenta</p>
         </div>
 
