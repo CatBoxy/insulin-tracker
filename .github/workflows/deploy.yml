@@ -39,8 +39,10 @@ jobs:
           REMOTE_DIR: /home/deploy/apps/glycofit
           SSH_CMD: ssh -i ~/.ssh/deploy_key -p 2222
         run: |
-          # Sync standalone build
+          # Sync standalone build (exclude .env and ecosystem.config.js)
           rsync -az --delete \
+            --exclude='.env' \
+            --exclude='ecosystem.config.js' \
             -e "${SSH_CMD}" \
             .next/standalone/ \
             ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/

@@ -11,6 +11,8 @@ npm run build
 
 echo "==> Syncing standalone output to ${REMOTE}..."
 rsync -az --delete \
+  --exclude='.env' \
+  --exclude='ecosystem.config.js' \
   .next/standalone/ \
   "${REMOTE_USER}@${REMOTE}:${REMOTE_DIR}/"
 
