@@ -33,6 +33,7 @@ interface MedicationState { condition: string; text: string }
 interface ConditionEntry { condition: string; has_condition: boolean; notes: string | null }
 interface MedicationEntry { condition: string; medication_text: string }
 interface WeightEntry { id: number; value: number; recorded_at: string }
+interface BodyCompEntry { id: number; adipose_pct: number; muscle_pct: number; recorded_at: string }
 
 export default function HistoriaClinicaPage() {
   const router = useRouter();
@@ -47,6 +48,12 @@ export default function HistoriaClinicaPage() {
   const [heightSaving, setHeightSaving] = useState(false);
   const [weightSaving, setWeightSaving] = useState(false);
   const [bodyMsg, setBodyMsg] = useState("");
+
+  // Composición corporal
+  const [adipose, setAdipose] = useState<number | "">("");
+  const [muscle, setMuscle] = useState<number | "">("");
+  const [bodyCompHistory, setBodyCompHistory] = useState<BodyCompEntry[]>([]);
+  const [compSaving, setCompSaving] = useState(false);
 
   // Antecedentes data (read-only display)
   const [familyData, setFamilyData] = useState<ConditionEntry[]>([]);
@@ -67,10 +74,11 @@ export default function HistoriaClinicaPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const [historyRes, heightRes, weightRes] = await Promise.all([
+      const [historyRes, heightRes, weightRes, compRes] = await Promise.all([
         fetch("/api/medical-history", { credentials: "include" }),
         fetch("/api/patient/height", { credentials: "include" }),
         fetch("/api/measurements?type=weight&limit=10", { credentials: "include" }),
+        fetch("/api/patient/body-composition", { credentials: "include" }),
       ]);
 
       if (!historyRes.ok) { router.push("/login"); return; }
@@ -118,6 +126,11 @@ export default function HistoriaClinicaPage() {
       if (weightRes.ok) {
         const w = await weightRes.json();
         setWeightHistory(w.measurements || []);
+      }
+
+      if (compRes.ok) {
+        const c = await compRes.json();
+        setBodyCompHistory(c.entries || []);
       }
 
       // If form not completed, go directly to form mode
@@ -179,6 +192,27 @@ export default function HistoriaClinicaPage() {
       }
     } catch {}
     finally { setWeightSaving(false); }
+  }
+
+  async function saveBodyComp() {
+    if (!adipose || !muscle) return;
+    setCompSaving(true);
+    try {
+      const res = await fetch("/api/patient/body-composition", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adipose_pct: adipose, muscle_pct: muscle }),
+      });
+      if (res.ok) {
+        setBodyMsg("Composición corporal registrada");
+        setTimeout(() => setBodyMsg(""), 3000);
+        setAdipose("");
+        setMuscle("");
+        const cr = await fetch("/api/patient/body-composition", { credentials: "include" });
+        if (cr.ok) { const d = await cr.json(); setBodyCompHistory(d.entries || []); }
+      }
+    } catch {}
+    finally { setCompSaving(false); }
   }
 
   // --- Form handlers ---
@@ -450,6 +484,48 @@ export default function HistoriaClinicaPage() {
                   <div key={w.id} className="flex justify-between text-sm">
                     <span className="text-gray-600">{w.value} kg</span>
                     <span className="text-gray-400">{new Date(w.recorded_at).toLocaleDateString("es-AR")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Composición Corporal */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">Composición Corporal</h2>
+
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tejido adiposo (%)</label>
+              <input
+                type="number" value={adipose} onChange={e => setAdipose(e.target.value ? Number(e.target.value) : "")}
+                placeholder="25" min={1} max={70} step={0.1}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tejido muscular (%)</label>
+              <input
+                type="number" value={muscle} onChange={e => setMuscle(e.target.value ? Number(e.target.value) : "")}
+                placeholder="35" min={1} max={70} step={0.1}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+          <button onClick={saveBodyComp} disabled={compSaving || !adipose || !muscle}
+            className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition">
+            {compSaving ? "Guardando..." : "Registrar composición"}
+          </button>
+
+          {bodyCompHistory.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs text-gray-400 mb-2">Últimos registros</p>
+              <div className="space-y-2">
+                {bodyCompHistory.slice(0, 5).map(e => (
+                  <div key={e.id} className="flex justify-between text-sm border-b border-gray-50 pb-1">
+                    <span className="text-gray-600">Adiposo: {e.adipose_pct}% | Muscular: {e.muscle_pct}%</span>
+                    <span className="text-gray-400 text-xs">{new Date(e.recorded_at).toLocaleDateString("es-AR")}</span>
                   </div>
                 ))}
               </div>
