@@ -241,12 +241,25 @@ function DashboardContent() {
               <p className="text-xs text-gray-500">Hola, {user.email.split("@")[0]}</p>
             </div>
           </div>
-          <HamburgerMenu items={[
-            { label: "Seguimiento", href: "/dashboard/seguimiento", badge: checkupNeedsAttention },
-            { label: "Antecedentes Médicos", href: "/dashboard/historia-clinica" },
-            { label: "Mi Cuenta", href: "/account" },
-            { label: "Salir", onClick: handleLogout },
-          ]} />
+          <div className="hidden md:flex items-center gap-4">
+            <a href="/dashboard/seguimiento" className="relative text-sm text-gray-500 hover:text-gray-700">
+              Seguimiento
+              {checkupNeedsAttention && (
+                <span className="absolute -top-1 -right-2 w-2.5 h-2.5 bg-blue-500 rounded-full animate-pulse" />
+              )}
+            </a>
+            <a href="/dashboard/historia-clinica" className="text-sm text-gray-500 hover:text-gray-700">Antecedentes Médicos</a>
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
+          </div>
+          <div className="md:hidden">
+            <HamburgerMenu items={[
+              { label: "Seguimiento", href: "/dashboard/seguimiento", badge: checkupNeedsAttention },
+              { label: "Antecedentes Médicos", href: "/dashboard/historia-clinica" },
+              { label: "Mi Cuenta", href: "/account" },
+              { label: "Salir", onClick: handleLogout },
+            ]} />
+          </div>
         </div>
       </header>
 

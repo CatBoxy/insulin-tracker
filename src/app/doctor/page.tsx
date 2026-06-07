@@ -129,11 +129,23 @@ export default function DoctorDashboard() {
               <p className="text-xs text-gray-500">Panel del Doctor</p>
             </div>
           </div>
-          <HamburgerMenu items={[
-            { label: "Notificaciones", href: "/doctor/notifications", badge: checkupRequests.length > 0 },
-            { label: "Mi Cuenta", href: "/account" },
-            { label: "Salir", onClick: handleLogout },
-          ]} />
+          <div className="hidden md:flex items-center gap-4">
+            <a href="/doctor/notifications" className="relative text-sm text-gray-500 hover:text-gray-700">
+              Notificaciones
+              {checkupRequests.length > 0 && (
+                <span className="absolute -top-1 -right-2 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
+              )}
+            </a>
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
+          </div>
+          <div className="md:hidden">
+            <HamburgerMenu items={[
+              { label: "Notificaciones", href: "/doctor/notifications", badge: checkupRequests.length > 0 },
+              { label: "Mi Cuenta", href: "/account" },
+              { label: "Salir", onClick: handleLogout },
+            ]} />
+          </div>
         </div>
       </header>
 

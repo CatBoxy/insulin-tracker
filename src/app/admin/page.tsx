@@ -102,10 +102,16 @@ export default function AdminPage() {
               <p className="text-xs text-gray-500">Panel de Administración</p>
             </div>
           </div>
-          <HamburgerMenu items={[
-            { label: "Mi Cuenta", href: "/account" },
-            { label: "Salir", onClick: handleLogout },
-          ]} />
+          <div className="hidden md:flex items-center gap-4">
+            <a href="/account" className="text-sm text-gray-500 hover:text-gray-700">Mi Cuenta</a>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-700">Salir</button>
+          </div>
+          <div className="md:hidden">
+            <HamburgerMenu items={[
+              { label: "Mi Cuenta", href: "/account" },
+              { label: "Salir", onClick: handleLogout },
+            ]} />
+          </div>
         </div>
       </header>
 
