@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyEmailSchema } from "@/lib/validation";
 import { verifyEmail } from "@/services/verification.service";
+import pool from "@/lib/db";
+import { createToken } from "@/services/auth.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +17,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ message: "Email verificado exitosamente" });
+    // Fetch user and issue session token
+    const { rows } = await pool.query(
+      "SELECT id, email, role FROM users WHERE id = $1",
+      [result.userId]
+    );
+    const user = rows[0];
+    const token = await createToken(user);
+
+    const response = NextResponse.json({ message: "Email verificado exitosamente", user, token });
+    response.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE === "true",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+    return response;
   } catch (error) {
     console.error("Verify email error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

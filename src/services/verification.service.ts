@@ -26,7 +26,7 @@ export async function createVerificationToken(userId: number): Promise<string> {
   return raw;
 }
 
-export async function verifyEmail(rawToken: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyEmail(rawToken: string): Promise<{ success: boolean; userId?: number; error?: string }> {
   const hash = hashToken(rawToken);
 
   const { rows } = await pool.query(
@@ -47,7 +47,7 @@ export async function verifyEmail(rawToken: string): Promise<{ success: boolean;
   );
   await pool.query("DELETE FROM email_verification_tokens WHERE id = $1", [token.id]);
 
-  return { success: true };
+  return { success: true, userId: token.user_id };
 }
 
 // --- Password Reset ---
