@@ -96,6 +96,23 @@ export default function PatientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"vitals" | "alerts" | "prescriptions" | "appointments" | "seguimiento" | "historia">("vitals");
   const [medicalHistory, setMedicalHistory] = useState<{ familyHistory: Array<{ condition: string; has_condition: boolean; notes: string | null }>; personalHistory: Array<{ condition: string; has_condition: boolean; notes: string | null }>; medications: Array<{ condition: string; medication_text: string }> } | null>(null);
+
+  // Pagination & date filter for measurements
+  const [measPage, setMeasPage] = useState(0);
+  const [measDateFrom, setMeasDateFrom] = useState("");
+  const [measDateTo, setMeasDateTo] = useState("");
+  const measPerPage = 20;
+
+  // Doctor indices
+  const [indices, setIndices] = useState<Array<{ id: number; calf_circumference_cm: number | null; dynamometer_force_mmlm: number | null; chair_test_seconds: number | null; insulin_resistance_index: number | null; recorded_at: string }>>([]);
+  const [indexForm, setIndexForm] = useState({ calf: "", dynamometer: "", chair: "", insulin: "" });
+  const [indexSaving, setIndexSaving] = useState(false);
+
+  // Patient body data (read-only for doctor)
+  const [patientHeight, setPatientHeight] = useState<number | null>(null);
+  const [patientWeights, setPatientWeights] = useState<Array<{ value: number; recorded_at: string }>>([]);
+  const [patientBodyComp, setPatientBodyComp] = useState<Array<{ adipose_pct: number; muscle_pct: number; recorded_at: string }>>([]);
+
   const [showApptForm, setShowApptForm] = useState(false);
   const [apptDate, setApptDate] = useState("");
   const [apptTime, setApptTime] = useState("09:00");
@@ -117,10 +134,14 @@ export default function PatientDetailPage() {
       setPrescriptions(data.prescriptions || []);
       setAppointments(data.appointments || []);
 
-      // Load checkup types and medical history
-      const [ctRes, mhRes] = await Promise.all([
+      // Load checkup types, medical history, indices, and body data
+      const [ctRes, mhRes, idxRes, heightRes, weightRes, compRes] = await Promise.all([
         fetch("/api/checkup-types", { credentials: "include" }).catch(() => null),
         fetch(`/api/doctor/patient/${patientId}/medical-history`, { credentials: "include" }).catch(() => null),
+        fetch(`/api/doctor/patient/${patientId}/indices`, { credentials: "include" }).catch(() => null),
+        fetch(`/api/doctor/patient/${patientId}/height`, { credentials: "include" }).catch(() => null),
+        fetch(`/api/doctor/patient/${patientId}/weights`, { credentials: "include" }).catch(() => null),
+        fetch(`/api/doctor/patient/${patientId}/body-composition`, { credentials: "include" }).catch(() => null),
       ]);
       if (ctRes?.ok) {
         const ctData = await ctRes.json();
@@ -129,6 +150,22 @@ export default function PatientDetailPage() {
       if (mhRes?.ok) {
         const mhData = await mhRes.json();
         setMedicalHistory(mhData);
+      }
+      if (idxRes?.ok) {
+        const idxData = await idxRes.json();
+        setIndices(idxData.entries || []);
+      }
+      if (heightRes?.ok) {
+        const h = await heightRes.json();
+        setPatientHeight(h.height_cm);
+      }
+      if (weightRes?.ok) {
+        const w = await weightRes.json();
+        setPatientWeights(w.entries || []);
+      }
+      if (compRes?.ok) {
+        const c = await compRes.json();
+        setPatientBodyComp(c.entries || []);
       }
     } catch { router.push("/doctor"); }
     finally { setLoading(false); }
@@ -304,43 +341,84 @@ export default function PatientDetailPage() {
               </div>
             )}
 
-            {/* Measurement history table */}
+            {/* Measurement history table with pagination and date filter */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="font-semibold text-gray-800 mb-4">📋 Historial de Mediciones</h3>
-              {measurements.length === 0 ? <p className="text-gray-400 text-sm">Sin mediciones</p> : (
-                <div className="space-y-2">
-                  {measurements.map(m => {
-                    const diastolic = parseDiastolic(m.notes);
-                    let status: VitalStatus = "normal";
-                    if (m.type === "glucemia") status = getGlucemiaStatus(Number(m.value));
-                    if (m.type === "blood_pressure") status = getSystolicStatus(Number(m.value));
-
-                    return (
-                      <div key={m.id} className={`flex items-center justify-between p-3 rounded-xl ${statusBadge[status].replace("text-", "").includes("green") ? "bg-green-50/50" : statusBadge[status].replace("text-", "").includes("yellow") ? "bg-yellow-50/50" : statusBadge[status].replace("text-", "").includes("red") ? "bg-red-50/50" : "bg-gray-50/50"}`}>
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg">{m.type === "glucemia" ? "🩸" : m.type === "blood_pressure" ? "💓" : "⚖️"}</span>
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">
-                              {m.type === "glucemia" ? `${m.value} mg/dL` : m.type === "blood_pressure" ? `${m.value}/${diastolic ?? "?"} mmHg` : `${m.value} ${m.unit}`}
-                            </p>
-                            <p className="text-xs text-gray-400">
-                              {m.type === "glucemia" ? "Glucemia" : m.type === "blood_pressure" ? "Presión Arterial" : "Peso"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge[status]}`}>
-                            {status === "normal" ? "Normal" : status === "warning" ? "Alerta" : "Crítico"}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {new Date(m.recorded_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="flex flex-wrap gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500">Desde:</label>
+                  <input type="date" value={measDateFrom} onChange={e => { setMeasDateFrom(e.target.value); setMeasPage(0); }}
+                    className="px-2 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary-500" />
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-500">Hasta:</label>
+                  <input type="date" value={measDateTo} onChange={e => { setMeasDateTo(e.target.value); setMeasPage(0); }}
+                    className="px-2 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary-500" />
+                </div>
+                {(measDateFrom || measDateTo) && (
+                  <button onClick={() => { setMeasDateFrom(""); setMeasDateTo(""); setMeasPage(0); }}
+                    className="text-xs text-primary-600 hover:underline">Limpiar filtro</button>
+                )}
+              </div>
+              {(() => {
+                const filtered = measurements.filter(m => {
+                  if (measDateFrom && new Date(m.recorded_at) < new Date(measDateFrom)) return false;
+                  if (measDateTo && new Date(m.recorded_at) > new Date(measDateTo + "T23:59:59")) return false;
+                  return true;
+                });
+                const totalPages = Math.ceil(filtered.length / measPerPage);
+                const page = filtered.slice(measPage * measPerPage, (measPage + 1) * measPerPage);
+
+                return filtered.length === 0 ? <p className="text-gray-400 text-sm">Sin mediciones</p> : (
+                  <>
+                    <div className="space-y-2">
+                      {page.map(m => {
+                        const diastolic = parseDiastolic(m.notes);
+                        let status: VitalStatus = "normal";
+                        if (m.type === "glucemia") status = getGlucemiaStatus(Number(m.value));
+                        if (m.type === "blood_pressure") status = getSystolicStatus(Number(m.value));
+
+                        return (
+                          <div key={m.id} className={`flex items-center justify-between p-3 rounded-xl ${statusBadge[status].replace("text-", "").includes("green") ? "bg-green-50/50" : statusBadge[status].replace("text-", "").includes("yellow") ? "bg-yellow-50/50" : statusBadge[status].replace("text-", "").includes("red") ? "bg-red-50/50" : "bg-gray-50/50"}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg">{m.type === "glucemia" ? "\ud83e\ude78" : m.type === "blood_pressure" ? "\ud83d\udc93" : "\u2696\ufe0f"}</span>
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {m.type === "glucemia" ? `${m.value} mg/dL` : m.type === "blood_pressure" ? `${m.value}/${diastolic ?? "?"} mmHg` : `${m.value} ${m.unit}`}
+                                </p>
+                                <p className="text-xs text-gray-400">
+                                  {m.type === "glucemia" ? "Glucemia" : m.type === "blood_pressure" ? "Presión Arterial" : "Peso"}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusBadge[status]}`}>
+                                {status === "normal" ? "Normal" : status === "warning" ? "Alerta" : "Crítico"}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {new Date(m.recorded_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                        <button onClick={() => setMeasPage(p => Math.max(0, p - 1))} disabled={measPage === 0}
+                          className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 transition">
+                          Anterior
+                        </button>
+                        <span className="text-xs text-gray-400">Página {measPage + 1} de {totalPages}</span>
+                        <button onClick={() => setMeasPage(p => Math.min(totalPages - 1, p + 1))} disabled={measPage >= totalPages - 1}
+                          className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-30 transition">
+                          Siguiente
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </>
         )}
@@ -522,6 +600,119 @@ export default function PatientDetailPage() {
 
         {tab === "historia" && (
           <div className="space-y-4">
+            {/* Patient Body Data */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Datos Corporales del Paciente</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Altura</p>
+                  <p className="text-lg font-bold text-gray-800">{patientHeight ? `${patientHeight} cm` : "—"}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Último peso</p>
+                  <p className="text-lg font-bold text-gray-800">{patientWeights[0] ? `${patientWeights[0].value} kg` : "—"}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">IMC</p>
+                  <p className="text-lg font-bold text-gray-800">
+                    {patientHeight && patientWeights[0] ? (patientWeights[0].value / ((patientHeight / 100) ** 2)).toFixed(1) : "—"}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-400">Comp. Corporal</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {patientBodyComp[0] ? `A:${patientBodyComp[0].adipose_pct}% M:${patientBodyComp[0].muscle_pct}%` : "—"}
+                  </p>
+                </div>
+              </div>
+              {patientWeights.length > 1 && (
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-xs text-gray-400 mb-1">Historial de peso</p>
+                  <div className="flex flex-wrap gap-2">
+                    {patientWeights.slice(0, 6).map((w, i) => (
+                      <span key={i} className="text-xs bg-gray-50 px-2 py-1 rounded">{w.value}kg ({new Date(w.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })})</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Doctor Indices */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Índices Clínicos (Doctor)</h3>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Pantorrilla (cm)</label>
+                  <input type="number" value={indexForm.calf} onChange={e => setIndexForm(f => ({ ...f, calf: e.target.value }))}
+                    placeholder="31" step={0.1}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Dinamómetro (mmlm)</label>
+                  <input type="number" value={indexForm.dynamometer} onChange={e => setIndexForm(f => ({ ...f, dynamometer: e.target.value }))}
+                    placeholder="25" step={0.1}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Prueba de silla (seg)</label>
+                  <input type="number" value={indexForm.chair} onChange={e => setIndexForm(f => ({ ...f, chair: e.target.value }))}
+                    placeholder="12" step={0.1}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Resist. insulina</label>
+                  <input type="number" value={indexForm.insulin} onChange={e => setIndexForm(f => ({ ...f, insulin: e.target.value }))}
+                    placeholder="2.5" step={0.1}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                </div>
+              </div>
+              <button onClick={async () => {
+                if (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin) return;
+                setIndexSaving(true);
+                try {
+                  const res = await fetch(`/api/doctor/patient/${patientId}/indices`, {
+                    method: "POST", credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      calf_circumference_cm: indexForm.calf ? Number(indexForm.calf) : null,
+                      dynamometer_force_mmlm: indexForm.dynamometer ? Number(indexForm.dynamometer) : null,
+                      chair_test_seconds: indexForm.chair ? Number(indexForm.chair) : null,
+                      insulin_resistance_index: indexForm.insulin ? Number(indexForm.insulin) : null,
+                    }),
+                  });
+                  if (res.ok) {
+                    setIndexForm({ calf: "", dynamometer: "", chair: "", insulin: "" });
+                    const r = await fetch(`/api/doctor/patient/${patientId}/indices`, { credentials: "include" });
+                    if (r.ok) { const d = await r.json(); setIndices(d.entries || []); }
+                  }
+                } catch {}
+                finally { setIndexSaving(false); }
+              }} disabled={indexSaving || (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin)}
+                className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition">
+                {indexSaving ? "Guardando..." : "Registrar índices"}
+              </button>
+
+              {indices.length > 0 && (
+                <div className="mt-4 border-t border-gray-100 pt-3">
+                  <p className="text-xs text-gray-400 mb-2">Historial</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {indices.map(idx => (
+                      <div key={idx.id} className="flex justify-between text-xs border-b border-gray-50 pb-1">
+                        <span className="text-gray-600">
+                          {idx.calf_circumference_cm != null && `Pant: ${idx.calf_circumference_cm}cm `}
+                          {idx.dynamometer_force_mmlm != null && `Din: ${idx.dynamometer_force_mmlm} `}
+                          {idx.chair_test_seconds != null && `Silla: ${idx.chair_test_seconds}s `}
+                          {idx.insulin_resistance_index != null && `IR: ${idx.insulin_resistance_index}`}
+                        </span>
+                        <span className="text-gray-400 shrink-0">{new Date(idx.recorded_at).toLocaleDateString("es-AR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Antecedentes Médicos */}
             {!medicalHistory ? (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <p className="text-gray-400 text-sm">El paciente aún no completó sus antecedentes médicos</p>
@@ -575,7 +766,7 @@ export default function PatientDetailPage() {
                     <div className="space-y-2">
                       {medicalHistory.medications.map((m, i) => (
                         <div key={i} className="flex items-start gap-2 p-3 rounded-xl bg-blue-50/50 border border-blue-100">
-                          <span className="text-blue-500 shrink-0">💊</span>
+                          <span className="text-blue-500 shrink-0">{"\ud83d\udc8a"}</span>
                           <div>
                             <p className="text-xs text-gray-400">{CONDITION_LABELS[m.condition] || m.condition}</p>
                             <p className="text-sm text-gray-800">{m.medication_text}</p>
