@@ -111,3 +111,20 @@ export const updatePatientCheckupSchema = z.object({
   data => data.frequency_months_override !== undefined || data.active !== undefined,
   { message: "Al menos un campo requerido" }
 );
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Email válido requerido"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token requerido"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, "Token requerido"),
+});
+
+export const resendVerificationSchema = z.object({
+  email: z.string().email("Email válido requerido"),
+});

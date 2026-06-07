@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { logout } from "@/lib/logout";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
-interface User { id: number; email: string; role: string }
+interface User { id: number; email: string; role: string; email_verified: boolean }
 interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; recorded_at: string }
 interface Alert { id: number; title: string; message: string; severity: string }
 interface Medication { id: number; name: string; dosage: string; frequency: string; instructions: string }
@@ -256,6 +256,20 @@ function DashboardContent() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         <PwaInstallPrompt />
+        {user && !user.email_verified && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center justify-between gap-2">
+            <p className="text-sm text-yellow-800">Tu email no está confirmado. Revisá tu correo o</p>
+            <button onClick={async () => {
+              await fetch("/api/auth/resend-verification", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: user.email }),
+                credentials: "include",
+              });
+            }} className="text-sm text-primary-600 font-medium hover:underline shrink-0">
+              reenviar email
+            </button>
+          </div>
+        )}
         {/* Alerts */}
         {alerts.length > 0 && (
           <div className="space-y-2">

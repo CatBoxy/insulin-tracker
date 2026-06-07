@@ -7,6 +7,7 @@ export interface AuthUser {
   id: number;
   email: string;
   role: string;
+  email_verified: boolean;
 }
 
 export async function getAuthUser(): Promise<AuthUser | null> {
@@ -18,7 +19,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   if (!token) return null;
   try {
     const payload = await verifyToken(token);
-    const { rows } = await pool.query("SELECT id, email, role FROM users WHERE id = $1", [payload.sub]);
+    const { rows } = await pool.query("SELECT id, email, role, email_verified FROM users WHERE id = $1", [payload.sub]);
     return rows[0] ?? null;
   } catch {
     return null;

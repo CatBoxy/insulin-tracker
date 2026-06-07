@@ -3,7 +3,7 @@ import { hashPassword, comparePassword, signToken } from "@/lib/auth";
 
 export async function findUserByEmail(email: string) {
   const { rows } = await pool.query(
-    "SELECT id, email, password_hash, role FROM users WHERE email = $1",
+    "SELECT id, email, password_hash, role, first_name, email_verified FROM users WHERE email = $1",
     [email.toLowerCase()]
   );
   return rows[0] ?? null;
@@ -16,7 +16,7 @@ export async function verifyCredentials(email: string, password: string) {
   const valid = await comparePassword(password, user.password_hash);
   if (!valid) return null;
 
-  return { id: user.id, email: user.email, role: user.role };
+  return { id: user.id, email: user.email, role: user.role, email_verified: user.email_verified };
 }
 
 interface CreateUserInput {

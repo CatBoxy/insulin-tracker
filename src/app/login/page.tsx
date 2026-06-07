@@ -17,6 +17,8 @@ function LoginContent() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendMsg, setResendMsg] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,6 +45,10 @@ function LoginContent() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Error al iniciar sesión"); return; }
+      if (data.user.email_verified === false) {
+        setUnverifiedEmail(parsed.data.email);
+        return;
+      }
       if (data.user.role === "admin") window.location.href = "/admin";
       else if (data.user.role === "doctor") window.location.href = "/doctor";
       else window.location.href = doctorCode ? `/dashboard?doctor=${doctorCode}` : "/dashboard";
@@ -79,11 +85,40 @@ function LoginContent() {
               className={inputClass("password") + " pr-12"} />
             {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
           </div>
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-sm text-primary-600 hover:underline">
+              Recuperar contraseña
+            </Link>
+          </div>
           <button type="submit" disabled={loading}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
             {loading ? "Ingresando..." : "Iniciar Sesión"}
           </button>
         </form>
+        {unverifiedEmail && (
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
+            <p className="mb-2">Tu email no está confirmado. Revisá tu correo electrónico.</p>
+            <div className="flex gap-3">
+              <button onClick={async () => {
+                setResendMsg("");
+                const res = await fetch("/api/auth/resend-verification", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ email: unverifiedEmail }),
+                });
+                setResendMsg(res.ok ? "Email reenviado" : "Error al reenviar");
+              }} className="text-primary-600 font-medium hover:underline text-sm">
+                Reenviar email de confirmación
+              </button>
+              <button onClick={() => {
+                if (doctorCode) window.location.href = `/dashboard?doctor=${doctorCode}`;
+                else window.location.href = "/dashboard";
+              }} className="text-gray-500 hover:underline text-sm">
+                Continuar sin confirmar
+              </button>
+            </div>
+            {resendMsg && <p className="mt-2 text-xs text-green-600">{resendMsg}</p>}
+          </div>
+        )}
         <p className="text-center text-sm text-gray-500 mt-6">
           No tenés cuenta? <Link href={`/register${doctorCode ? `?doctor=${doctorCode}` : ""}`} className="text-primary-600 font-medium hover:underline">Registrate</Link>
         </p>

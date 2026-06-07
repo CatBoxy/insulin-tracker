@@ -68,6 +68,25 @@ export function passwordResetEmailHtml(name: string, resetUrl: string) {
   `;
 }
 
+export function verificationEmailHtml(name: string, verifyUrl: string) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #16a34a; margin-bottom: 4px;">Glycofit</h2>
+      <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Tu salud, bajo control</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
+      <p style="color: #1f2937;">Hola <strong>${name}</strong>,</p>
+      <p style="color: #1f2937;">Confirmá tu correo electrónico para completar tu registro.</p>
+      <a href="${verifyUrl}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+        Confirmar email
+      </a>
+      <p style="color: #6b7280; font-size: 13px;">Este enlace es válido por 48 horas.</p>
+      <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
+        — Equipo Glycofit
+      </p>
+    </div>
+  `;
+}
+
 export function welcomeEmailHtml(name: string) {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">

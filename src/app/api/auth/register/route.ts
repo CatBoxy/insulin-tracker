@@ -4,7 +4,8 @@ import { registerSchema } from "@/lib/validation";
 import * as authService from "@/services/auth.service";
 import { getDoctorByCode, linkPatientToDoctor } from "@/services/doctor-link.service";
 import { resolvePatientId } from "@/lib/patient-resolve";
-import { sendEmail, welcomeEmailHtml } from "@/services/email.service";
+import { sendEmail, verificationEmailHtml } from "@/services/email.service";
+import { createVerificationToken } from "@/services/verification.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,14 +46,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send welcome email (fire and forget)
+    // Send verification email (fire and forget)
+    const verificationRawToken = await createVerificationToken(user.id);
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://glyco.fit";
+    const verifyUrl = `${baseUrl}/verify-email?token=${verificationRawToken}`;
+
     sendEmail({
       to: email,
-      subject: "Bienvenido/a a Glycofit",
-      html: welcomeEmailHtml(first_name),
-    }).catch(err => console.error("Welcome email failed:", err));
+      subject: "Confirmá tu email — Glycofit",
+      html: verificationEmailHtml(first_name, verifyUrl),
+    }).catch(err => console.error("Verification email failed:", err));
 
-    const response = NextResponse.json({ user, token, linkedDoctor }, { status: 201 });
+    const response = NextResponse.json(
+      { user: { ...user, email_verified: false }, token, linkedDoctor },
+      { status: 201 }
+    );
     response.cookies.set("token", token, {
       httpOnly: true,
       secure: process.env.COOKIE_SECURE === "true",
