@@ -26,6 +26,7 @@ function RegisterContent() {
   const [doctorName, setDoctorName] = useState<string | null>(null);
   const [verificationPending, setVerificationPending] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
+  const [resendSuccess, setResendSuccess] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
@@ -119,13 +120,16 @@ function RegisterContent() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ email: registeredEmail }),
                 });
-                setError("");
-                setFieldErrors({});
+                setResendSuccess(true);
+                setTimeout(() => setResendSuccess(false), 4000);
               }}
               className="text-sm text-primary-600 font-medium hover:underline"
             >
               Reenviar email de confirmación
             </button>
+            {resendSuccess && (
+              <p className="mt-2 text-xs text-green-600 font-medium">Email reenviado exitosamente</p>
+            )}
           </div>
           <div className="mt-4">
             <Link href="/login" className="text-sm text-gray-500 hover:text-gray-700">
