@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Send verification email (fire and forget)
     const verificationRawToken = await createVerificationToken(user.id);
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://glyco.fit";
+    const baseUrl = process.env.APP_URL || "https://glyco.fit";
     const verifyUrl = `${baseUrl}/verify-email?token=${verificationRawToken}`;
 
     sendEmail({

@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const user = await findUserByEmail(parsed.data.email);
     if (user) {
       const rawToken = await createPasswordResetToken(user.id);
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://glyco.fit";
+      const baseUrl = process.env.APP_URL || "https://glyco.fit";
       const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
 
       sendEmail({
