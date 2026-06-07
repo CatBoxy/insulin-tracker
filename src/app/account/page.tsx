@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import PasswordInput from "@/components/PasswordInput";
 import { updateAccountSchema, changePasswordSchema } from "@/lib/validation";
 import { logout } from "@/lib/logout";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 interface Account {
   id: number;
@@ -262,6 +263,9 @@ export default function AccountPage() {
             </button>
           </form>
         </div>
+
+        {/* PWA Install */}
+        <PwaInstallPrompt />
 
         {/* Linked Doctors (patients only) */}
         {account.role === "patient" && (

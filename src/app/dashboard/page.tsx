@@ -3,7 +3,6 @@ import { Suspense, useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { logout } from "@/lib/logout";
-import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import HamburgerMenu from "@/components/HamburgerMenu";
 
 interface User { id: number; email: string; role: string; email_verified: boolean }
@@ -264,7 +263,6 @@ function DashboardContent() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <PwaInstallPrompt />
         {/* Alerts */}
         {alerts.length > 0 && (
           <div className="space-y-2">
