@@ -44,9 +44,12 @@ function LoginContent() {
         body: JSON.stringify(parsed.data),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error || "Error al iniciar sesión"); return; }
-      if (data.user.email_verified === false) {
-        setUnverifiedEmail(parsed.data.email);
+      if (!res.ok) {
+        if (data.error === "email_not_verified") {
+          setUnverifiedEmail(data.email || parsed.data.email);
+          return;
+        }
+        setError(data.error || "Error al iniciar sesión");
         return;
       }
       if (data.user.role === "admin") window.location.href = "/admin";
@@ -97,25 +100,17 @@ function LoginContent() {
         </form>
         {unverifiedEmail && (
           <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
-            <p className="mb-2">Tu email no está confirmado. Revisá tu correo electrónico.</p>
-            <div className="flex gap-3">
-              <button onClick={async () => {
-                setResendMsg("");
-                const res = await fetch("/api/auth/resend-verification", {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ email: unverifiedEmail }),
-                });
-                setResendMsg(res.ok ? "Email reenviado" : "Error al reenviar");
-              }} className="text-primary-600 font-medium hover:underline text-sm">
-                Reenviar email de confirmación
-              </button>
-              <button onClick={() => {
-                if (doctorCode) window.location.href = `/dashboard?doctor=${doctorCode}`;
-                else window.location.href = "/dashboard";
-              }} className="text-gray-500 hover:underline text-sm">
-                Continuar sin confirmar
-              </button>
-            </div>
+            <p className="mb-2">Tu email no está confirmado. Revisá tu correo electrónico o la carpeta de spam.</p>
+            <button onClick={async () => {
+              setResendMsg("");
+              const res = await fetch("/api/auth/resend-verification", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: unverifiedEmail }),
+              });
+              setResendMsg(res.ok ? "Email reenviado" : "Error al reenviar");
+            }} className="text-primary-600 font-medium hover:underline text-sm">
+              Reenviar email de confirmación
+            </button>
             {resendMsg && <p className="mt-2 text-xs text-green-600">{resendMsg}</p>}
           </div>
         )}

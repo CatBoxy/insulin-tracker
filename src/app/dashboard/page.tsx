@@ -256,20 +256,6 @@ function DashboardContent() {
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         <PwaInstallPrompt />
-        {user && !user.email_verified && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center justify-between gap-2">
-            <p className="text-sm text-yellow-800">Tu email no está confirmado. Revisá tu correo o</p>
-            <button onClick={async () => {
-              await fetch("/api/auth/resend-verification", {
-                method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: user.email }),
-                credentials: "include",
-              });
-            }} className="text-sm text-primary-600 font-medium hover:underline shrink-0">
-              reenviar email
-            </button>
-          </div>
-        )}
         {/* Alerts */}
         {alerts.length > 0 && (
           <div className="space-y-2">

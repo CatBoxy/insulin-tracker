@@ -13,6 +13,13 @@ export async function POST(request: NextRequest) {
     const user = await authService.verifyCredentials(parsed.data.email, parsed.data.password);
     if (!user) return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
 
+    if (!user.email_verified) {
+      return NextResponse.json(
+        { error: "email_not_verified", email: parsed.data.email },
+        { status: 403 }
+      );
+    }
+
     const token = await authService.createToken(user);
 
     const response = NextResponse.json({ user, token });

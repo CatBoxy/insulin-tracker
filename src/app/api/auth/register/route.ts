@@ -31,8 +31,6 @@ export async function POST(request: NextRequest) {
       date_of_birth, gender, phone,
       role: role || "patient",
     });
-    const token = await authService.createToken(user);
-
     // Auto-link to doctor if code provided (only for patients)
     let linkedDoctor: string | null = null;
     if (doctorCode && user.role === "patient") {
@@ -57,18 +55,10 @@ export async function POST(request: NextRequest) {
       html: verificationEmailHtml(first_name, verifyUrl),
     }).catch(err => console.error("Verification email failed:", err));
 
-    const response = NextResponse.json(
-      { user: { ...user, email_verified: false }, token, linkedDoctor },
+    return NextResponse.json(
+      { verificationPending: true, email, linkedDoctor },
       { status: 201 }
     );
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE === "true",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-    return response;
   } catch (error) {
     console.error("Register error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
