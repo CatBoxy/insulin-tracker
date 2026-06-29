@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/rate-limit";
 import { registerSchema } from "@/lib/validation";
 import * as authService from "@/services/auth.service";
 import { getDoctorByCode, linkPatientToDoctor } from "@/services/doctor-link.service";
@@ -9,11 +8,6 @@ import { createVerificationToken } from "@/services/verification.service";
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for") || "unknown";
-    if (!rateLimit(`register:${ip}`, 3, 60 * 60 * 1000)) {
-      return NextResponse.json({ error: "Demasiados intentos. Intente más tarde." }, { status: 429 });
-    }
-
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
     if (!parsed.success) {

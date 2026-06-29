@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rateLimit } from "@/lib/rate-limit";
 import { resendVerificationSchema } from "@/lib/validation";
 import { findUserByEmail } from "@/services/auth.service";
 import { createVerificationToken } from "@/services/verification.service";
@@ -7,11 +6,6 @@ import { sendEmail, verificationEmailHtml } from "@/services/email.service";
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for") || "unknown";
-    if (!rateLimit(`resend-verify:${ip}`, 3, 15 * 60 * 1000)) {
-      return NextResponse.json({ error: "Demasiados intentos. Intente más tarde." }, { status: 429 });
-    }
-
     const body = await request.json();
     const parsed = resendVerificationSchema.safeParse(body);
     if (!parsed.success) {
