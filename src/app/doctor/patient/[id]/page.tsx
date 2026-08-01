@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { getGlucemiaStatus, getSystolicStatus, type VitalStatus } from "@/lib/thresholds";
@@ -193,7 +193,7 @@ export default function PatientDetailPage() {
     .reverse()
     .forEach(m => {
       const ts = new Date(m.recorded_at).getTime();
-      const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+      const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" });
       const isOutlier = Number(m.value) < GLUCEMIA_MIN || Number(m.value) > GLUCEMIA_MAX;
 
       let window = glucoseWindows.find(w => Math.abs(ts - w.timestamp) < WINDOW_MS);
@@ -224,7 +224,7 @@ export default function PatientDetailPage() {
     .filter(m => m.type === "blood_pressure")
     .reverse()
     .map(m => ({
-      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
+      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" }),
       sistólica: Number(m.value),
       diastólica: parseDiastolic(m.notes) ?? 0,
     }));
@@ -233,7 +233,7 @@ export default function PatientDetailPage() {
     .filter(m => m.type === "weight")
     .reverse()
     .map(m => ({
-      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
+      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" }),
       peso: Number(m.value),
     }));
 
@@ -259,6 +259,7 @@ export default function PatientDetailPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* Patient info card */}
+        {(age !== null || patient.gender || patient.blood_type || patient.allergies) && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             {age !== null && <div><span className="text-gray-400">Edad</span><p className="font-medium text-gray-800">{age} años</p></div>}
@@ -267,6 +268,7 @@ export default function PatientDetailPage() {
             {patient.allergies && <div><span className="text-gray-400">Alergias</span><p className="font-medium text-gray-800">{patient.allergies}</p></div>}
           </div>
         </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-2 flex-wrap">
@@ -455,10 +457,10 @@ export default function PatientDetailPage() {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
                         {p.status}
                       </span>
-                      <span className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString("es-AR")}</span>
+                      <span className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</span>
                     </div>
                     {p.notes && <p className="text-sm text-gray-700 mt-2">{p.notes}</p>}
-                    {p.expires_at && <p className="text-xs text-gray-400 mt-1">Vence: {new Date(p.expires_at).toLocaleDateString("es-AR")}</p>}
+                    {p.expires_at && <p className="text-xs text-gray-400 mt-1">Vence: {new Date(p.expires_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</p>}
                   </div>
                 ))}
               </div>
@@ -558,9 +560,9 @@ export default function PatientDetailPage() {
                           <span className="text-lg">{a.type === "video_call" ? "📹" : "🏥"}</span>
                           <div>
                             <p className="text-sm font-medium text-gray-800">
-                              {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+                              {new Date(a.scheduled_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}
                               {" "}
-                              {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                              {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/San_Juan" })}
                             </p>
                             <p className="text-xs text-gray-400">{a.duration_minutes} min — {a.type === "video_call" ? "Videollamada" : "Presencial"}</p>
                             {a.reason && <p className="text-xs text-gray-500 mt-1">{a.reason}</p>}
@@ -630,7 +632,7 @@ export default function PatientDetailPage() {
                   <p className="text-xs text-gray-400 mb-1">Historial de peso</p>
                   <div className="flex flex-wrap gap-2">
                     {patientWeights.slice(0, 6).map((w, i) => (
-                      <span key={i} className="text-xs bg-gray-50 px-2 py-1 rounded">{w.value}kg ({new Date(w.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })})</span>
+                      <span key={i} className="text-xs bg-gray-50 px-2 py-1 rounded">{w.value}kg ({new Date(w.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" })})</span>
                     ))}
                   </div>
                 </div>
@@ -704,7 +706,7 @@ export default function PatientDetailPage() {
                           {idx.chair_test_seconds != null && `Silla: ${idx.chair_test_seconds}s `}
                           {idx.insulin_resistance_index != null && `IR: ${idx.insulin_resistance_index}`}
                         </span>
-                        <span className="text-gray-400 shrink-0">{new Date(idx.recorded_at).toLocaleDateString("es-AR")}</span>
+                        <span className="text-gray-400 shrink-0">{new Date(idx.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</span>
                       </div>
                     ))}
                   </div>
@@ -811,10 +813,10 @@ function getRelativeLabel(nextDueAt: string | null, status: string): string {
     return `Venció hace ${months} ${months === 1 ? "mes" : "meses"}`;
   }
   if (status === "proximo") {
-    const fecha = due.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+    const fecha = due.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" });
     return `En ${diffDays} días · ${fecha}`;
   }
-  const fecha = due.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+  const fecha = due.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" });
   return `Próximo: ${fecha}`;
 }
 
@@ -839,9 +841,31 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
   const [completeId, setCompleteId] = useState<number | null>(null);
   const [completeDate, setCompleteDate] = useState(new Date().toISOString().split("T")[0]);
   const [completeNotes, setCompleteNotes] = useState("");
+  const [completeFiles, setCompleteFiles] = useState<File[]>([]);
+  const completeFileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState<"success" | "critical">("success");
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Attachments viewer for completions
+  const [viewingCompletions, setViewingCompletions] = useState<number | null>(null);
+  const [completionHistory, setCompletionHistory] = useState<Array<{
+    id: number; completed_at: string; notes: string | null; reported_by: string | null; attachment_count: number;
+  }>>([]);
+  const [completionAttachments, setCompletionAttachments] = useState<Record<number, Array<{
+    id: number; cloudinary_url: string; original_filename: string; file_type: string;
+    parse_status: string | null; document_type: string | null;
+    parsed_data: { tests?: Array<{ name: string; value: number | string; unit: string | null; reference_range: string | null; flag: string }>; findings?: string; impressions?: string; summary?: string } | null;
+    confidence_score: number | null; error_message: string | null;
+  }>>>({});
+  const [expandedCompletion, setExpandedCompletion] = useState<number | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [attachmentsLoading, setAttachmentsLoading] = useState<number | null>(null);
+
+  // Upload to existing completion (doctor)
+  const [uploadingFor, setUploadingFor] = useState<number | null>(null);
+  const historyFileRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetId, setUploadTargetId] = useState<number | null>(null);
 
   const loadCheckups = useCallback(async () => {
     try {
@@ -910,15 +934,29 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
   async function handleComplete(item: DoctorCheckupItem) {
     setActionLoading(true); setMsg("");
     try {
-      const date = new Date(completeDate + "T00:00:00-03:00");
-      const res = await fetch(`/api/doctor/patient/${patientId}/checkups/${item.id}/complete`, {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completed_at: date.toISOString(), notes: completeNotes || undefined }),
-      });
+      const date = new Date(completeDate + "T12:00:00");
+      let res: Response;
+
+      if (completeFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("completed_at", date.toISOString());
+        if (completeNotes) formData.append("notes", completeNotes);
+        completeFiles.forEach(f => formData.append("files", f));
+        res = await fetch(`/api/doctor/patient/${patientId}/checkups/${item.id}/complete`, {
+          method: "POST", credentials: "include",
+          body: formData,
+        });
+      } else {
+        res = await fetch(`/api/doctor/patient/${patientId}/checkups/${item.id}/complete`, {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ completed_at: date.toISOString(), notes: completeNotes || undefined }),
+        });
+      }
+
       if (res.ok) {
         setMsg("Control registrado"); setMsgType("success");
-        setCompleteId(null); setCompleteNotes("");
+        setCompleteId(null); setCompleteNotes(""); setCompleteFiles([]);
         loadCheckups();
         onReload();
       } else {
@@ -928,6 +966,109 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
     } catch { setMsg("Error de conexión"); setMsgType("critical"); }
     finally { setActionLoading(false); }
   }
+
+  async function loadCompletionHistory(checkupId: number) {
+    if (viewingCompletions === checkupId) { setViewingCompletions(null); return; }
+    setViewingCompletions(checkupId);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/doctor/patient/${patientId}/checkups/${checkupId}/history`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setCompletionHistory(data.completions || []);
+      }
+    } catch { /* ignore */ }
+    finally { setHistoryLoading(false); }
+  }
+
+  async function loadCompletionAttachments(completionId: number) {
+    if (expandedCompletion === completionId) { setExpandedCompletion(null); return; }
+    setExpandedCompletion(completionId);
+    if (completionAttachments[completionId]) return;
+    setAttachmentsLoading(completionId);
+    try {
+      const res = await fetch(`/api/checkups/completions/${completionId}/attachments`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setCompletionAttachments(prev => ({ ...prev, [completionId]: data.attachments || [] }));
+      }
+    } catch { /* ignore */ }
+    finally { setAttachmentsLoading(null); }
+  }
+
+  async function handleRetryParse(attachmentId: number, completionId: number) {
+    try {
+      const res = await fetch(`/api/attachments/${attachmentId}/retry-parse`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        setCompletionAttachments(prev => { const u = { ...prev }; delete u[completionId]; return u; });
+        setExpandedCompletion(null);
+        setTimeout(() => loadCompletionAttachments(completionId), 2000);
+      }
+    } catch { /* ignore */ }
+  }
+
+  function triggerHistoryUpload(completionId: number) {
+    setUploadTargetId(completionId);
+    setTimeout(() => historyFileRef.current?.click(), 0);
+  }
+
+  async function handleHistoryFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (!uploadTargetId || files.length === 0) return;
+    if (historyFileRef.current) historyFileRef.current.value = "";
+
+    setUploadingFor(uploadTargetId);
+    try {
+      const formData = new FormData();
+      files.forEach(f => formData.append("files", f));
+
+      const res = await fetch(`/api/checkups/completions/${uploadTargetId}/attachments`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      if (res.ok) {
+        setCompletionAttachments(prev => { const u = { ...prev }; delete u[uploadTargetId]; return u; });
+        setCompletionHistory(prev => prev.map(h =>
+          h.id === uploadTargetId ? { ...h, attachment_count: h.attachment_count + files.length } : h
+        ));
+        setExpandedCompletion(uploadTargetId);
+        loadCompletionAttachments(uploadTargetId);
+      } else {
+        const data = await res.json();
+        setMsg(data.error || "No pudimos subir el archivo.");
+        setMsgType("critical");
+      }
+    } catch {
+      setMsg("No pudimos subir el archivo. Intentá de nuevo.");
+      setMsgType("critical");
+    } finally {
+      setUploadingFor(null);
+      setUploadTargetId(null);
+    }
+  }
+
+  const refreshAttachments = useCallback(async (completionId: number) => {
+    try {
+      const res = await fetch(`/api/checkups/completions/${completionId}/attachments`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setCompletionAttachments(prev => ({ ...prev, [completionId]: data.attachments || [] }));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (expandedCompletion === null) return;
+    const atts = completionAttachments[expandedCompletion];
+    if (!atts) return;
+    const hasPending = atts.some(a => a.parse_status === "pending" || a.parse_status === "processing");
+    if (!hasPending) return;
+
+    const interval = setInterval(() => refreshAttachments(expandedCompletion), 4000);
+    return () => clearInterval(interval);
+  }, [expandedCompletion, completionAttachments, refreshAttachments]);
 
   async function dismissRequest(requestId: number) {
     try {
@@ -964,7 +1105,7 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
                   <div>
                     <p className="text-sm font-medium text-gray-800">{r.checkup_name}</p>
                     <p className="text-xs text-gray-400">
-                      Solicitado el {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      Solicitado el {`${new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })} ${new Date(r.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/San_Juan" })}`}
                     </p>
                   </div>
                 </div>
@@ -1007,7 +1148,7 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
                     )}
                     {item.last_completed_at && (
                       <p className="text-xs text-gray-400 mt-0.5">
-                        Último: {new Date(item.last_completed_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                        Último: {new Date(item.last_completed_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}
                       </p>
                     )}
                     <p className="text-xs text-gray-400">
@@ -1033,6 +1174,12 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
                   className={`text-xs font-medium hover:underline min-h-[44px] px-2 ${item.active ? "text-red-500" : "text-green-600"}`}>
                   {item.active ? "Desactivar control" : "Reactivar control"}
                 </button>
+                {item.last_completed_at && (
+                  <button onClick={() => { loadCompletionHistory(item.id); setCompleteId(null); setEditingId(null); }}
+                    className={`text-xs font-medium hover:underline min-h-[44px] px-2 ${viewingCompletions === item.id ? "text-primary-600" : "text-gray-500"}`}>
+                    Ver historial
+                  </button>
+                )}
               </div>
 
               {/* Inline frequency edit */}
@@ -1066,16 +1213,205 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
                   <label className="block text-xs text-gray-500">Notas (opcional)</label>
                   <textarea value={completeNotes} onChange={e => setCompleteNotes(e.target.value)} rows={2}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
+
+                  {/* File upload */}
+                  <div>
+                    <input ref={completeFileRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" multiple
+                      onChange={e => {
+                        const files = Array.from(e.target.files || []);
+                        if (completeFiles.length + files.length > 10) { setMsg("Máximo 10 archivos"); setMsgType("critical"); return; }
+                        setCompleteFiles(prev => [...prev, ...files]);
+                        if (completeFileRef.current) completeFileRef.current.value = "";
+                      }}
+                      className="hidden" />
+                    <button type="button" onClick={() => completeFileRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-primary-600 border border-dashed border-primary-300 rounded-lg hover:bg-primary-50 transition">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                      Adjuntar archivo
+                    </button>
+                  </div>
+                  {completeFiles.length > 0 && (
+                    <div className="space-y-1">
+                      {completeFiles.map((f, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-gray-200">
+                          <span className="text-xs text-gray-600 truncate flex-1">{f.name}</span>
+                          <span className="text-xs text-gray-400 shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                          <button onClick={() => setCompleteFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600 shrink-0">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
                     <button onClick={() => handleComplete(item)} disabled={!completeDate || actionLoading}
                       className="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium disabled:opacity-50 min-h-[44px]">
-                      Guardar
+                      {actionLoading && completeFiles.length > 0 ? "Subiendo..." : "Guardar"}
                     </button>
-                    <button onClick={() => setCompleteId(null)}
+                    <button onClick={() => { setCompleteId(null); setCompleteFiles([]); }}
                       className="px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg min-h-[44px]">
                       Cancelar
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Hidden file input for doctor history uploads */}
+              <input
+                ref={historyFileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                multiple
+                onChange={handleHistoryFileSelect}
+                className="hidden"
+              />
+
+              {/* View completion history with attachments */}
+              {viewingCompletions === item.id && (
+                <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
+                  <h5 className="text-xs font-semibold text-gray-500">Historial de visitas</h5>
+                  {historyLoading ? (
+                    <div className="flex justify-center py-2"><div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" /></div>
+                  ) : completionHistory.length === 0 ? (
+                    <p className="text-xs text-gray-400">Sin visitas registradas</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {completionHistory.map(c => (
+                        <div key={c.id}>
+                          <div className="flex items-start justify-between py-1.5">
+                            <div>
+                              <p className="text-sm text-gray-700">
+                                {new Date(c.completed_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })} {new Date(c.completed_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/San_Juan" })}
+                              </p>
+                              {c.notes && <p className="text-xs text-gray-400 mt-0.5">{c.notes}</p>}
+                              {c.reported_by && <span className="text-xs text-gray-400">por {c.reported_by}</span>}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {uploadingFor === c.id ? (
+                              <div className="flex items-center gap-2 px-3 py-2 text-xs text-primary-600">
+                                <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
+                                Subiendo...
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => triggerHistoryUpload(c.id)}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-primary-600 border border-primary-200 rounded-lg hover:bg-primary-50 transition min-h-[36px]"
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                </svg>
+                                Adjuntar archivo
+                              </button>
+                            )}
+                            {c.attachment_count > 0 && (
+                              <button
+                                onClick={() => loadCompletionAttachments(c.id)}
+                                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border rounded-lg transition min-h-[36px] ${expandedCompletion === c.id ? "border-primary-300 bg-primary-50 text-primary-600" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                              >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Ver archivos ({c.attachment_count})
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Expanded attachments with parsed data */}
+                          {expandedCompletion === c.id && (
+                            <div className="ml-3 mt-1 mb-2 space-y-2">
+                              {attachmentsLoading === c.id ? (
+                                <div className="flex justify-center py-2"><div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" /></div>
+                              ) : (
+                                (completionAttachments[c.id] || []).map(att => (
+                                  <div key={att.id} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      {att.file_type === "image" ? (
+                                        <a href={att.cloudinary_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                          <img src={att.cloudinary_url} alt={att.original_filename} className="w-12 h-12 object-cover rounded border border-gray-200" />
+                                        </a>
+                                      ) : (
+                                        <a href={att.cloudinary_url} target="_blank" rel="noopener noreferrer" className="shrink-0 w-12 h-12 flex items-center justify-center bg-red-50 rounded border border-gray-200">
+                                          <span className="text-xs font-medium text-red-600">PDF</span>
+                                        </a>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <a href={att.cloudinary_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline truncate block">
+                                          {att.original_filename}
+                                        </a>
+                                        {att.parse_status === "completed" && att.document_type && (
+                                          <span className="text-xs text-gray-400">
+                                            {att.document_type === "lab_results" ? "Resultados de laboratorio" :
+                                             att.document_type === "imaging" ? "Estudio por imágenes" :
+                                             att.document_type === "prescription" ? "Receta" : "Documento"}
+                                            {att.confidence_score ? ` · ${Math.round(att.confidence_score * 100)}%` : ""}
+                                          </span>
+                                        )}
+                                        {att.parse_status === "processing" && <span className="text-xs text-amber-500">Procesando...</span>}
+                                        {att.parse_status === "pending" && <span className="text-xs text-gray-400">En cola...</span>}
+                                        {att.parse_status === "failed" && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-xs text-red-500">Error al procesar</span>
+                                            <button onClick={() => handleRetryParse(att.id, c.id)} className="text-xs text-primary-500 hover:underline">Reintentar</button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Parsed lab results table */}
+                                    {att.parse_status === "completed" && att.parsed_data?.tests && att.parsed_data.tests.length > 0 && (
+                                      <div className="border-t border-gray-200 pt-2">
+                                        <table className="w-full text-xs">
+                                          <thead>
+                                            <tr className="text-gray-400 text-left">
+                                              <th className="pb-1 font-medium">Estudio</th>
+                                              <th className="pb-1 font-medium text-right">Valor</th>
+                                              <th className="pb-1 font-medium text-right">Referencia</th>
+                                              <th className="pb-1 font-medium text-center">Estado</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {att.parsed_data.tests.map((test, ti) => (
+                                              <tr key={ti} className="border-t border-gray-100">
+                                                <td className="py-1 text-gray-700">{test.name}</td>
+                                                <td className="py-1 text-right font-medium text-gray-800">{test.value} {test.unit || ""}</td>
+                                                <td className="py-1 text-right text-gray-400">{test.reference_range || "—"}</td>
+                                                <td className="py-1 text-center">
+                                                  <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                                    test.flag === "high" ? "text-red-600 bg-red-50" :
+                                                    test.flag === "low" ? "text-blue-600 bg-blue-50" :
+                                                    test.flag === "normal" ? "text-green-600 bg-green-50" : "text-gray-600 bg-gray-50"
+                                                  }`}>
+                                                    {test.flag === "high" ? "Alto" : test.flag === "low" ? "Bajo" : test.flag === "normal" ? "Normal" : "—"}
+                                                  </span>
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+
+                                    {att.parse_status === "completed" && att.parsed_data?.findings && (
+                                      <div className="border-t border-gray-200 pt-2">
+                                        <p className="text-xs text-gray-600">{att.parsed_data.findings}</p>
+                                        {att.parsed_data.impressions && <p className="text-xs text-gray-500 mt-1 italic">{att.parsed_data.impressions}</p>}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

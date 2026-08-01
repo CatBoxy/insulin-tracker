@@ -109,7 +109,8 @@ export async function listForDoctorPatient(patientId: number) {
 export async function listCompletions(patientCheckupId: number) {
   const { rows } = await pool.query(
     `SELECT cc.id, cc.completed_at, cc.notes, cc.created_at,
-            u.first_name, u.last_name, u.email
+            u.first_name, u.last_name, u.email,
+            (SELECT count(*) FROM checkup_attachments ca WHERE ca.checkup_completion_id = cc.id)::int AS attachment_count
      FROM checkup_completions cc
      LEFT JOIN users u ON u.id = cc.reported_by_user_id
      WHERE cc.patient_checkup_id = $1
@@ -124,6 +125,7 @@ export async function listCompletions(patientCheckupId: number) {
       ? `${r.first_name || ""} ${r.last_name || ""}`.trim()
       : r.email?.split("@")[0] ?? null,
     created_at: r.created_at?.toISOString() ?? null,
+    attachment_count: r.attachment_count,
   }));
 }
 
@@ -142,18 +144,6 @@ export async function completeCheckup(
   notes?: string,
   appointmentId?: number
 ) {
-  // Idempotency: reject if completion exists within ±24h
-  const { rows: existing } = await pool.query(
-    `SELECT id FROM checkup_completions
-     WHERE patient_checkup_id = $1
-       AND completed_at BETWEEN $2::timestamptz - INTERVAL '24 hours'
-                            AND $2::timestamptz + INTERVAL '24 hours'`,
-    [patientCheckupId, completedAt]
-  );
-  if (existing.length > 0) {
-    return { conflict: true };
-  }
-
   const { rows } = await pool.query(
     `INSERT INTO checkup_completions (patient_checkup_id, completed_at, reported_by_user_id, notes, appointment_id)
      VALUES ($1, $2, $3, $4, $5) RETURNING id`,

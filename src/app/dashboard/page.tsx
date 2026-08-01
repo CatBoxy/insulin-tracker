@@ -179,7 +179,7 @@ function DashboardContent() {
     .reverse()
     .forEach(m => {
       const ts = new Date(m.recorded_at).getTime();
-      const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" });
+      const date = new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" });
       const isOutlier = m.value < GLUCEMIA_MIN || m.value > GLUCEMIA_MAX;
 
       // Find or create a window for this measurement
@@ -219,7 +219,7 @@ function DashboardContent() {
     .filter(m => m.type === "blood_pressure")
     .reverse()
     .map(m => ({
-      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }),
+      date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" }),
       sistólica: Number(m.value),
       diastólica: Number(getDiastolic(m)),
     }));
@@ -333,9 +333,9 @@ function DashboardContent() {
                       <span className="text-lg shrink-0">{a.type === "video_call" ? "📹" : "🏥"}</span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-800">
-                          {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
+                          {new Date(a.scheduled_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" })}
                           {" "}
-                          {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/San_Juan" })}
                         </p>
                         <p className="text-xs text-gray-400">{doctorName} — {a.duration_minutes} min</p>
                         {a.reason && <p className="text-xs text-gray-500 truncate">{a.reason}</p>}

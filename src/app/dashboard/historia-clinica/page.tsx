@@ -483,7 +483,7 @@ export default function HistoriaClinicaPage() {
                 {weightHistory.slice(0, 5).map(w => (
                   <div key={w.id} className="flex justify-between text-sm">
                     <span className="text-gray-600">{w.value} kg</span>
-                    <span className="text-gray-400">{new Date(w.recorded_at).toLocaleDateString("es-AR")}</span>
+                    <span className="text-gray-400">{new Date(w.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</span>
                   </div>
                 ))}
               </div>
@@ -525,7 +525,7 @@ export default function HistoriaClinicaPage() {
                 {bodyCompHistory.slice(0, 5).map(e => (
                   <div key={e.id} className="flex justify-between text-sm border-b border-gray-50 pb-1">
                     <span className="text-gray-600">Adiposo: {e.adipose_pct}% | Muscular: {e.muscle_pct}%</span>
-                    <span className="text-gray-400 text-xs">{new Date(e.recorded_at).toLocaleDateString("es-AR")}</span>
+                    <span className="text-gray-400 text-xs">{new Date(e.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</span>
                   </div>
                 ))}
               </div>

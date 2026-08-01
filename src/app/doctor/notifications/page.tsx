@@ -116,7 +116,7 @@ export default function DoctorNotificationsPage() {
                       {r.checkup_name}
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-400">
-                      {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {`${new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })} ${new Date(r.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/San_Juan" })}`}
                     </td>
                     <td className="px-4 py-3">
                       <button

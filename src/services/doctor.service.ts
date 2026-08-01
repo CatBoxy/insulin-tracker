@@ -20,19 +20,42 @@ export async function listPatients(doctorId: number) {
       p.gender,
       pd.status as assignment_status,
       pd.assigned_at,
-      (SELECT json_build_object('value', m.value, 'recorded_at', m.recorded_at)
-       FROM measurements m WHERE m.patient_id = p.id AND m.type = 'glucemia'
-       ORDER BY m.recorded_at DESC LIMIT 1) as latest_glucose,
-      (SELECT json_build_object('value', m.value, 'notes', m.notes, 'recorded_at', m.recorded_at)
-       FROM measurements m WHERE m.patient_id = p.id AND m.type = 'blood_pressure'
-       ORDER BY m.recorded_at DESC LIMIT 1) as latest_bp,
-      (SELECT json_build_object('value', m.value, 'recorded_at', m.recorded_at)
-       FROM measurements m WHERE m.patient_id = p.id AND m.type = 'weight'
-       ORDER BY m.recorded_at DESC LIMIT 1) as latest_weight,
-      (SELECT COUNT(*) FROM alerts a WHERE a.patient_id = p.id AND a.read = false) as unread_alerts
+      CASE WHEN lg.value IS NOT NULL
+        THEN json_build_object('value', lg.value, 'recorded_at', lg.recorded_at)
+      END as latest_glucose,
+      CASE WHEN lbp.value IS NOT NULL
+        THEN json_build_object('value', lbp.value, 'notes', lbp.notes, 'recorded_at', lbp.recorded_at)
+      END as latest_bp,
+      CASE WHEN lw.value IS NOT NULL
+        THEN json_build_object('value', lw.value, 'recorded_at', lw.recorded_at)
+      END as latest_weight,
+      COALESCE(ua.cnt, 0) as unread_alerts
     FROM patient_doctor pd
     JOIN patients p ON p.id = pd.patient_id
     JOIN users u ON u.id = p.user_id
+    LEFT JOIN LATERAL (
+      SELECT m.value, m.recorded_at
+      FROM measurements m
+      WHERE m.patient_id = p.id AND m.type = 'glucemia'
+      ORDER BY m.recorded_at DESC LIMIT 1
+    ) lg ON true
+    LEFT JOIN LATERAL (
+      SELECT m.value, m.notes, m.recorded_at
+      FROM measurements m
+      WHERE m.patient_id = p.id AND m.type = 'blood_pressure'
+      ORDER BY m.recorded_at DESC LIMIT 1
+    ) lbp ON true
+    LEFT JOIN LATERAL (
+      SELECT m.value, m.recorded_at
+      FROM measurements m
+      WHERE m.patient_id = p.id AND m.type = 'weight'
+      ORDER BY m.recorded_at DESC LIMIT 1
+    ) lw ON true
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*)::int as cnt
+      FROM alerts a
+      WHERE a.patient_id = p.id AND a.read = false
+    ) ua ON true
     WHERE pd.doctor_id = $1 AND pd.status = 'active'
     ORDER BY u.last_name, u.email
   `, [doctorId]);

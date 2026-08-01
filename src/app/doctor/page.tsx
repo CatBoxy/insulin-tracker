@@ -214,9 +214,9 @@ export default function DoctorDashboard() {
                       <div>
                         <p className="text-sm font-medium text-gray-800">{name}</p>
                         <p className="text-xs text-gray-400">
-                          {new Date(a.scheduled_at).toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" })}
+                          {new Date(a.scheduled_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" })}
                           {" "}
-                          {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(a.scheduled_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/San_Juan" })}
                           {" — "}{a.duration_minutes} min
                         </p>
                         {a.reason && <p className="text-xs text-gray-500">{a.reason}</p>}

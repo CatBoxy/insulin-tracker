@@ -281,7 +281,7 @@ export default function AccountPage() {
                     <div key={d.assignment_id} className="py-3 border-b border-gray-50 last:border-0">
                       <p className="text-sm font-medium text-gray-800">Dr. {name}</p>
                       <p className="text-xs text-gray-400">{d.email}</p>
-                      <p className="text-xs text-gray-400">Vinculado: {new Date(d.assigned_at).toLocaleDateString("es-AR")}</p>
+                      <p className="text-xs text-gray-400">Vinculado: {new Date(d.assigned_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</p>
                     </div>
                   );
                 })}

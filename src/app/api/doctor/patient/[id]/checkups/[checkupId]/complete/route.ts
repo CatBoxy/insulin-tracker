@@ -3,6 +3,7 @@ import { getAuthUser } from "@/lib/auth-middleware";
 import { completeCheckupSchema } from "@/lib/validation";
 import * as appointmentsService from "@/services/appointments.service";
 import * as checkupsService from "@/services/checkups.service";
+import * as attachmentsService from "@/services/attachments.service";
 
 export async function POST(
   request: NextRequest,
@@ -34,14 +35,35 @@ export async function POST(
       return NextResponse.json({ error: "Control no encontrado" }, { status: 404 });
     }
 
-    const body = await request.json();
-    const parsed = completeCheckupSchema.safeParse(body);
+    // Parse FormData or JSON
+    const contentType = request.headers.get("content-type") || "";
+    let completedAt: string;
+    let notes: string | undefined;
+    let files: File[] = [];
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      completedAt = formData.get("completed_at") as string;
+      notes = (formData.get("notes") as string) || undefined;
+      files = formData.getAll("files") as File[];
+    } else {
+      const body = await request.json();
+      completedAt = body.completed_at;
+      notes = body.notes;
+    }
+
+    const parsed = completeCheckupSchema.safeParse({ completed_at: completedAt, notes });
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
     if (new Date(parsed.data.completed_at) > new Date()) {
       return NextResponse.json({ error: "No se puede registrar una fecha futura" }, { status: 400 });
+    }
+
+    if (files.length > 0) {
+      const fileError = attachmentsService.validateFiles(files);
+      if (fileError) return NextResponse.json({ error: fileError }, { status: 400 });
     }
 
     const result = await checkupsService.completeCheckup(
@@ -51,11 +73,12 @@ export async function POST(
       parsed.data.notes
     );
 
-    if (result.conflict) {
-      return NextResponse.json({ error: "Ya existe un registro cercano a esa fecha" }, { status: 409 });
+    let attachments: { id: number; cloudinary_url: string; original_filename: string }[] = [];
+    if (files.length > 0) {
+      attachments = await attachmentsService.uploadAndAttach(result.id, files, user.id);
     }
 
-    return NextResponse.json({ ok: true, id: result.id });
+    return NextResponse.json({ ok: true, id: result.id, attachments });
   } catch (error) {
     console.error("POST /api/doctor/patient/[id]/checkups/[checkupId]/complete error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

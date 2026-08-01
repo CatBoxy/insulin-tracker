@@ -151,7 +151,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800">{u.email}</p>
-                    <p className="text-xs text-gray-400">Creado: {new Date(u.created_at).toLocaleDateString("es-AR")}</p>
+                    <p className="text-xs text-gray-400">Creado: {new Date(u.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</p>
                   </div>
                 </div>
                 {roleBadge(u.role)}
@@ -198,7 +198,7 @@ export default function AdminPage() {
                         <span className="text-gray-400 mr-1">→</span>
                         <span className="font-medium">{a.patient_email}</span>
                       </p>
-                      <p className="text-xs text-gray-400">{new Date(a.assigned_at).toLocaleDateString("es-AR")}</p>
+                      <p className="text-xs text-gray-400">{new Date(a.assigned_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>

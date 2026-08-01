@@ -80,7 +80,7 @@ export default function OnboardingPage() {
       .map(e => ({
         patient_checkup_id: e.checkup.id,
         last_completed_at: e.choice === "date" && e.date
-          ? new Date(e.date + "T00:00:00-03:00").toISOString()
+          ? new Date(e.date + "T12:00:00").toISOString()
           : null,
       }));
 
