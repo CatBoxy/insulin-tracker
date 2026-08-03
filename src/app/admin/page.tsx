@@ -10,6 +10,11 @@ interface StudyPatient { patient_id: number; first_name: string; last_name: stri
 interface Participant { id: number; patient_id: number; participant_code: string; arm: string; enrolled_at: string; withdrawn_at: string | null; withdrawal_reason: string | null; first_name: string; last_name: string; email: string; consent_version: string; baseline_hba1c: number | null }
 interface ScreeningEntry { id: number; patient_id: number | null; eligible: boolean; reason: string | null; screened_at: string; screener_first_name: string; screener_last_name: string; patient_first_name: string | null; patient_last_name: string | null }
 interface AuditEntry { id: number; old_arm: string | null; new_arm: string; changed_at: string; reason: string; first_name: string; last_name: string }
+interface FeatureFlag { key: string; label: string; description: string | null; intervention: boolean; control: boolean }
+interface FlagAuditEntry { id: number; flag_key: string; arm: string; old_value: boolean | null; new_value: boolean; changed_at: string; reason: string | null; first_name: string; last_name: string; email: string }
+interface InactiveParticipant { participant_code: string; arm: string; first_name: string; last_name: string; last_activity: string | null }
+interface EnrollmentMonth { month: string; enrolled: number; intervention: number; control: number }
+interface DashboardData { total: number; interventionActive: number; controlActive: number; withdrawn: number; inactive: InactiveParticipant[]; enrollmentProgress: EnrollmentMonth[] }
 
 type Tab = "users" | "study";
 
@@ -51,6 +56,17 @@ export default function AdminPage() {
   const [enrollResult, setEnrollResult] = useState<{ participant_code: string } | null>(null);
   const [enrollError, setEnrollError] = useState("");
   const [enrollLoading, setEnrollLoading] = useState(false);
+
+  // Feature flags state
+  const [featureFlags, setFeatureFlags] = useState<FeatureFlag[]>([]);
+  const [flagAudit, setFlagAudit] = useState<FlagAuditEntry[]>([]);
+  const [flagToggleReason, setFlagToggleReason] = useState("");
+  const [flagToggleTarget, setFlagToggleTarget] = useState<{ key: string; arm: string; enabled: boolean } | null>(null);
+  const [flagMsg, setFlagMsg] = useState("");
+  const [flagError, setFlagError] = useState("");
+
+  // Dashboard state
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
 
   // Participant detail
   const [expandedParticipant, setExpandedParticipant] = useState<number | null>(null);
@@ -101,6 +117,27 @@ export default function AdminPage() {
     } catch {}
   }, []);
 
+  const loadFeatureFlags = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/study/flags", { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setFeatureFlags(data.flags || []); }
+    } catch {}
+  }, []);
+
+  const loadFlagAudit = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/study/flags/audit", { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setFlagAudit(data.audit || []); }
+    } catch {}
+  }, []);
+
+  const loadDashboard = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/study/dashboard", { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setDashboard(data); }
+    } catch {}
+  }, []);
+
   useEffect(() => { loadUsers(); loadAssignments(); }, [loadUsers, loadAssignments]);
 
   useEffect(() => {
@@ -108,8 +145,11 @@ export default function AdminPage() {
       loadStudyPatients();
       loadParticipants();
       loadScreeningLog();
+      loadFeatureFlags();
+      loadFlagAudit();
+      loadDashboard();
     }
-  }, [activeTab, loadStudyPatients, loadParticipants, loadScreeningLog]);
+  }, [activeTab, loadStudyPatients, loadParticipants, loadScreeningLog, loadFeatureFlags, loadFlagAudit, loadDashboard]);
 
   // ---- Users tab actions ----
   async function createUser(e: React.FormEvent) {
@@ -265,6 +305,34 @@ export default function AdminPage() {
         setParticipantError(data.error || "Error");
       }
     } catch { setParticipantError("Error de conexion"); }
+  }
+
+  async function handleToggleFlag() {
+    if (!flagToggleTarget) return;
+    setFlagMsg(""); setFlagError("");
+    try {
+      const res = await fetch("/api/admin/study/flags", {
+        credentials: "include",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          flagKey: flagToggleTarget.key,
+          arm: flagToggleTarget.arm,
+          enabled: flagToggleTarget.enabled,
+          reason: flagToggleReason || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setFlagMsg("Configuración actualizada");
+        setFlagToggleTarget(null);
+        setFlagToggleReason("");
+        loadFeatureFlags();
+        loadFlagAudit();
+      } else {
+        setFlagError(data.error || "Error");
+      }
+    } catch { setFlagError("Error de conexion"); }
   }
 
   const doctors = users.filter(u => u.role === "doctor");
@@ -448,6 +516,85 @@ export default function AdminPage() {
 
         {activeTab === "study" && (
           <>
+            {/* Study Dashboard */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Panel del estudio</h3>
+              {dashboard ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-gray-800">{dashboard.total}</p>
+                      <p className="text-xs text-gray-500 mt-1">Total inscriptos</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-700">{dashboard.interventionActive}</p>
+                      <p className="text-xs text-blue-600 mt-1">Intervención</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-amber-700">{dashboard.controlActive}</p>
+                      <p className="text-xs text-amber-600 mt-1">Control</p>
+                    </div>
+                    <div className="bg-red-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-red-700">{dashboard.withdrawn}</p>
+                      <p className="text-xs text-red-600 mt-1">Retirados</p>
+                    </div>
+                  </div>
+
+                  {dashboard.inactive.length > 0 && (
+                    <div className="border border-amber-200 rounded-xl p-4 bg-amber-50">
+                      <h4 className="text-sm font-medium text-amber-800 mb-2">
+                        Participantes sin actividad (7+ días)
+                      </h4>
+                      <div className="space-y-2">
+                        {dashboard.inactive.map(p => (
+                          <div key={p.participant_code} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-amber-700">{p.participant_code}</span>
+                              <span className="text-gray-700">{p.last_name}, {p.first_name}</span>
+                              {armBadge(p.arm)}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {p.last_activity ? `Última actividad: ${fmtDate(p.last_activity)}` : "Sin actividad registrada"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {dashboard.enrollmentProgress.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Progreso de inscripción por mes</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200 text-left">
+                              <th className="py-2 pr-3 font-medium text-gray-600">Mes</th>
+                              <th className="py-2 pr-3 font-medium text-gray-600">Total</th>
+                              <th className="py-2 pr-3 font-medium text-gray-600">Intervención</th>
+                              <th className="py-2 font-medium text-gray-600">Control</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dashboard.enrollmentProgress.map(m => (
+                              <tr key={m.month} className="border-b border-gray-50">
+                                <td className="py-2 pr-3 text-gray-800">{m.month}</td>
+                                <td className="py-2 pr-3 text-gray-800">{m.enrolled}</td>
+                                <td className="py-2 pr-3 text-blue-700">{m.intervention}</td>
+                                <td className="py-2 text-amber-700">{m.control}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Cargando datos del estudio...</p>
+              )}
+            </div>
+
             {/* Screening Section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="font-semibold text-gray-800 mb-4">Evaluar Elegibilidad</h3>
@@ -670,6 +817,132 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+
+            {/* Feature Flags */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Configuración de funcionalidades</h3>
+              {flagMsg && <div className="bg-primary-50 text-primary-700 p-3 rounded-xl text-sm mb-3">{flagMsg}</div>}
+              {flagError && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm mb-3">{flagError}</div>}
+              {featureFlags.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay funcionalidades configuradas.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-left">
+                        <th className="py-2 pr-3 font-medium text-gray-600">Funcionalidad</th>
+                        <th className="py-2 pr-3 font-medium text-gray-600 text-center">Intervención</th>
+                        <th className="py-2 font-medium text-gray-600 text-center">Control</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {featureFlags.map(flag => (
+                        <tr key={flag.key} className="border-b border-gray-50">
+                          <td className="py-3 pr-3">
+                            <div className="font-medium text-gray-800">{flag.label}</div>
+                            {flag.description && <div className="text-xs text-gray-500">{flag.description}</div>}
+                          </td>
+                          <td className="py-3 pr-3 text-center">
+                            <button
+                              onClick={() => {
+                                if (flagToggleTarget?.key === flag.key && flagToggleTarget?.arm === "intervention") {
+                                  setFlagToggleTarget(null); setFlagToggleReason("");
+                                } else {
+                                  setFlagToggleTarget({ key: flag.key, arm: "intervention", enabled: !flag.intervention });
+                                  setFlagToggleReason("");
+                                  setFlagMsg(""); setFlagError("");
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                                flag.intervention
+                                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${flag.intervention ? "bg-green-500" : "bg-gray-400"}`} />
+                              {flag.intervention ? "Activo" : "Inactivo"}
+                            </button>
+                          </td>
+                          <td className="py-3 text-center">
+                            <button
+                              onClick={() => {
+                                if (flagToggleTarget?.key === flag.key && flagToggleTarget?.arm === "control") {
+                                  setFlagToggleTarget(null); setFlagToggleReason("");
+                                } else {
+                                  setFlagToggleTarget({ key: flag.key, arm: "control", enabled: !flag.control });
+                                  setFlagToggleReason("");
+                                  setFlagMsg(""); setFlagError("");
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                                flag.control
+                                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${flag.control ? "bg-green-500" : "bg-gray-400"}`} />
+                              {flag.control ? "Activo" : "Inactivo"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Toggle confirmation with reason */}
+              {flagToggleTarget && (
+                <div className="mt-4 p-4 border border-blue-200 rounded-xl bg-blue-50">
+                  <p className="text-sm text-blue-800 mb-2">
+                    {flagToggleTarget.enabled ? "Activar" : "Desactivar"}{" "}
+                    <span className="font-medium">{featureFlags.find(f => f.key === flagToggleTarget.key)?.label || flagToggleTarget.key}</span>{" "}
+                    para <span className="font-medium">{flagToggleTarget.arm === "intervention" ? "Intervención" : "Control"}</span>
+                  </p>
+                  <div className="flex gap-2 items-end">
+                    <input
+                      type="text"
+                      value={flagToggleReason}
+                      onChange={e => setFlagToggleReason(e.target.value)}
+                      placeholder="Razón del cambio (requerida)"
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    />
+                    <button
+                      onClick={handleToggleFlag}
+                      disabled={!flagToggleReason.trim()}
+                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition"
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      onClick={() => { setFlagToggleTarget(null); setFlagToggleReason(""); }}
+                      className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Flag Audit History */}
+              {flagAudit.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Historial de cambios</h4>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    {flagAudit.map(a => (
+                      <div key={a.id} className="text-xs text-gray-600 flex flex-wrap gap-2 py-1 border-b border-gray-50">
+                        <span className="text-gray-400">{fmtDate(a.changed_at)}</span>
+                        <span className="font-medium">{a.flag_key}</span>
+                        <span>({a.arm === "intervention" ? "Intervención" : "Control"})</span>
+                        <span>{a.old_value === null ? "—" : a.old_value ? "Activo" : "Inactivo"} → {a.new_value ? "Activo" : "Inactivo"}</span>
+                        {a.reason && <span className="text-gray-400">({a.reason})</span>}
+                        <span className="text-gray-400">por {a.first_name} {a.last_name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
