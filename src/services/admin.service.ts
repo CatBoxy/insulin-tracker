@@ -112,3 +112,13 @@ export async function removeAssignment(id: number) {
     [id]
   );
 }
+
+export async function listPatientsWithDob() {
+  const { rows } = await pool.query(`
+    SELECT p.id as patient_id, u.first_name, u.last_name, u.email, p.date_of_birth
+    FROM patients p
+    JOIN users u ON u.id = p.user_id
+    ORDER BY u.last_name, u.first_name
+  `);
+  return rows;
+}

@@ -183,3 +183,10 @@ export const verifyLabResultsSchema = z.object({
     z.number().int().positive()
   ).min(1, "Al menos un resultado requerido"),
 });
+
+export const setFlagSchema = z.object({
+  flagKey: z.string().min(1, "Flag key requerido"),
+  arm: studyArmEnum,
+  enabled: z.boolean({ message: "enabled requerido" }),
+  reason: z.string().optional(),
+});
