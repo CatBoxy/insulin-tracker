@@ -6,7 +6,7 @@ import { logout } from "@/lib/logout";
 import HamburgerMenu from "@/components/HamburgerMenu";
 
 interface User { id: number; email: string; role: string; email_verified: boolean }
-interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; recorded_at: string }
+interface Measurement { id: number; type: string; value: number; unit: string; context: string | null; notes: string; systolic: number | null; diastolic: number | null; recorded_at: string }
 interface Alert { id: number; title: string; message: string; severity: string }
 interface Medication { id: number; name: string; dosage: string; frequency: string; instructions: string }
 interface Appointment { id: number; scheduled_at: string; duration_minutes: number; type: string; status: string; reason: string | null; doctor_email: string; doctor_first_name: string | null; doctor_last_name: string | null }
@@ -184,11 +184,6 @@ function DashboardContent() {
 
   const handleLogout = () => logout(router);
 
-  // Helper to extract diastolic from notes
-  function getDiastolic(m: Measurement): string {
-    const match = m.notes?.match(/diastolic:(\d+)/);
-    return match ? match[1] : "?";
-  }
 
   const GLUCEMIA_MIN = 30;
   const GLUCEMIA_MAX = 500;
@@ -243,7 +238,7 @@ function DashboardContent() {
     .map(m => ({
       date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" }),
       sistólica: Number(m.value),
-      diastólica: Number(getDiastolic(m)),
+      diastólica: m.diastolic ?? 0,
     }));
 
   if (!user) return <div className="flex items-center justify-center min-h-screen"><div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" /></div>;

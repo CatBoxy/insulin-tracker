@@ -24,12 +24,6 @@ const statusBadge: Record<VitalStatus, string> = {
   emergency: "bg-red-200 text-red-900",
 };
 
-function parseDiastolic(notes: string | null): number | null {
-  if (!notes) return null;
-  const m = notes.match(/diastolic:(\d+)/);
-  return m ? parseInt(m[1]) : null;
-}
-
 interface Measurement {
   id: number;
   type: string;
@@ -37,6 +31,8 @@ interface Measurement {
   unit: string;
   context: string | null;
   notes: string | null;
+  systolic: number | null;
+  diastolic: number | null;
   recorded_at: string;
 }
 
@@ -108,8 +104,8 @@ export default function PatientDetailPage() {
   const [measLoadingMore, setMeasLoadingMore] = useState(false);
 
   // Doctor indices
-  const [indices, setIndices] = useState<Array<{ id: number; calf_circumference_cm: number | null; dynamometer_force_mmlm: number | null; chair_test_seconds: number | null; insulin_resistance_index: number | null; recorded_at: string }>>([]);
-  const [indexForm, setIndexForm] = useState({ calf: "", dynamometer: "", chair: "", insulin: "" });
+  const [indices, setIndices] = useState<Array<{ id: number; calf_circumference_cm: number | null; dynamometer_force_mmlm: number | null; chair_test_seconds: number | null; insulin_resistance_index: number | null; abdominal_circumference_cm: number | null; recorded_at: string }>>([]);
+  const [indexForm, setIndexForm] = useState({ calf: "", dynamometer: "", chair: "", insulin: "", abdominal: "" });
   const [indexSaving, setIndexSaving] = useState(false);
 
   // Patient body data (read-only for doctor)
@@ -248,7 +244,7 @@ export default function PatientDetailPage() {
     .map(m => ({
       date: new Date(m.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", timeZone: "America/Argentina/San_Juan" }),
       sistólica: Number(m.value),
-      diastólica: parseDiastolic(m.notes) ?? 0,
+      diastólica: m.diastolic ?? 0,
     }));
 
   const weightData = measurements
@@ -397,7 +393,7 @@ export default function PatientDetailPage() {
                   <>
                     <div className="space-y-2">
                       {page.map(m => {
-                        const diastolic = parseDiastolic(m.notes);
+                        const diastolic = m.diastolic;
                         let status: VitalStatus = "normal";
                         if (m.type === "glucemia") status = getGlucemiaStatus(Number(m.value));
                         if (m.type === "blood_pressure") status = getSystolicStatus(Number(m.value));
@@ -700,9 +696,15 @@ export default function PatientDetailPage() {
                     placeholder="2.5" step={0.1}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Circ. abdominal (cm)</label>
+                  <input type="number" value={indexForm.abdominal} onChange={e => setIndexForm(f => ({ ...f, abdominal: e.target.value }))}
+                    placeholder="90" step={0.1}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                </div>
               </div>
               <button onClick={async () => {
-                if (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin) return;
+                if (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin && !indexForm.abdominal) return;
                 setIndexSaving(true);
                 try {
                   const res = await fetch(`/api/doctor/patient/${patientId}/indices`, {
@@ -713,16 +715,17 @@ export default function PatientDetailPage() {
                       dynamometer_force_mmlm: indexForm.dynamometer ? Number(indexForm.dynamometer) : null,
                       chair_test_seconds: indexForm.chair ? Number(indexForm.chair) : null,
                       insulin_resistance_index: indexForm.insulin ? Number(indexForm.insulin) : null,
+                      abdominal_circumference_cm: indexForm.abdominal ? Number(indexForm.abdominal) : null,
                     }),
                   });
                   if (res.ok) {
-                    setIndexForm({ calf: "", dynamometer: "", chair: "", insulin: "" });
+                    setIndexForm({ calf: "", dynamometer: "", chair: "", insulin: "", abdominal: "" });
                     const r = await fetch(`/api/doctor/patient/${patientId}/indices`, { credentials: "include" });
                     if (r.ok) { const d = await r.json(); setIndices(d.entries || []); }
                   }
                 } catch {}
                 finally { setIndexSaving(false); }
-              }} disabled={indexSaving || (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin)}
+              }} disabled={indexSaving || (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin && !indexForm.abdominal)}
                 className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition">
                 {indexSaving ? "Guardando..." : "Registrar índices"}
               </button>
@@ -737,7 +740,8 @@ export default function PatientDetailPage() {
                           {idx.calf_circumference_cm != null && `Pant: ${idx.calf_circumference_cm}cm `}
                           {idx.dynamometer_force_mmlm != null && `Din: ${idx.dynamometer_force_mmlm} `}
                           {idx.chair_test_seconds != null && `Silla: ${idx.chair_test_seconds}s `}
-                          {idx.insulin_resistance_index != null && `IR: ${idx.insulin_resistance_index}`}
+                          {idx.insulin_resistance_index != null && `IR: ${idx.insulin_resistance_index} `}
+                          {idx.abdominal_circumference_cm != null && `Abd: ${idx.abdominal_circumference_cm}cm`}
                         </span>
                         <span className="text-gray-400 shrink-0">{new Date(idx.recorded_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}</span>
                       </div>

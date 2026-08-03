@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
       notes: parsed.data.notes,
     });
 
+    if ("windowViolation" in result && result.windowViolation) {
+      return NextResponse.json({ error: result.error }, { status: 429 });
+    }
+
     return NextResponse.json(result);
   } catch (error) {
     console.error("POST /api/measurements error:", error);

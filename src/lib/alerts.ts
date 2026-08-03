@@ -8,6 +8,8 @@ interface MeasurementData {
   value: number;
   context?: string;
   notes?: string;
+  systolic?: number;
+  diastolic?: number;
 }
 
 export interface AlertResult {
@@ -46,9 +48,8 @@ export async function checkAndCreateAlert(measurement: MeasurementData): Promise
     }
 
     if (measurement.type === "blood_pressure") {
-      const systolic = measurement.value;
-      const diastolicMatch = measurement.notes?.match(/diastolic:(\d+)/);
-      const diastolic = diastolicMatch ? Number(diastolicMatch[1]) : 0;
+      const systolic = measurement.systolic ?? measurement.value;
+      const diastolic = measurement.diastolic ?? 0;
       if (systolic > THRESHOLDS.systolic.warning || diastolic > THRESHOLDS.diastolic.warning) {
         title = "Presión arterial elevada";
         message = `${systolic}/${diastolic} ${THRESHOLDS.systolic.unit}`;

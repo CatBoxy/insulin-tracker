@@ -24,7 +24,7 @@ export async function listPatients(doctorId: number) {
         THEN json_build_object('value', lg.value, 'recorded_at', lg.recorded_at)
       END as latest_glucose,
       CASE WHEN lbp.value IS NOT NULL
-        THEN json_build_object('value', lbp.value, 'notes', lbp.notes, 'recorded_at', lbp.recorded_at)
+        THEN json_build_object('value', lbp.value, 'notes', lbp.notes, 'systolic', lbp.systolic, 'diastolic', lbp.diastolic, 'recorded_at', lbp.recorded_at)
       END as latest_bp,
       CASE WHEN lw.value IS NOT NULL
         THEN json_build_object('value', lw.value, 'recorded_at', lw.recorded_at)
@@ -40,7 +40,7 @@ export async function listPatients(doctorId: number) {
       ORDER BY m.recorded_at DESC LIMIT 1
     ) lg ON true
     LEFT JOIN LATERAL (
-      SELECT m.value, m.notes, m.recorded_at
+      SELECT m.value, m.notes, m.systolic, m.diastolic, m.recorded_at
       FROM measurements m
       WHERE m.patient_id = p.id AND m.type = 'blood_pressure'
       ORDER BY m.recorded_at DESC LIMIT 1

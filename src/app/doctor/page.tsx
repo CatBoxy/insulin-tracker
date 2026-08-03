@@ -16,7 +16,7 @@ interface Patient {
   assignment_status: string;
   assigned_at: string;
   latest_glucose: { value: number; recorded_at: string } | null;
-  latest_bp: { value: number; notes: string; recorded_at: string } | null;
+  latest_bp: { value: number; notes: string; systolic: number | null; diastolic: number | null; recorded_at: string } | null;
   latest_weight: { value: number; recorded_at: string } | null;
   unread_alerts: string;
 }
@@ -48,12 +48,6 @@ const statusDot: Record<VitalStatus, string> = {
   critical: statusColors.critical.dot,
   emergency: statusColors.emergency.dot,
 };
-
-function parseDiastolic(notes: string | null): number | null {
-  if (!notes) return null;
-  const m = notes.match(/diastolic:(\d+)/);
-  return m ? parseInt(m[1]) : null;
-}
 
 export default function DoctorDashboard() {
   const router = useRouter();
@@ -241,7 +235,7 @@ export default function DoctorDashboard() {
             <div className="space-y-3">
               {sorted.map(p => {
                 const status = worstStatus(p);
-                const diastolic = p.latest_bp ? parseDiastolic(p.latest_bp.notes) : null;
+                const diastolic = p.latest_bp?.diastolic ?? null;
                 return (
                   <div
                     key={p.patient_id}

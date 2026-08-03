@@ -14,7 +14,7 @@ interface CreateMeasurementInput {
 
 export async function listByPatient(patientId: number, limit = 50) {
   const { rows } = await pool.query(
-    "SELECT id, type, value, unit, context, notes, recorded_at FROM measurements WHERE patient_id = $1 ORDER BY recorded_at DESC LIMIT $2",
+    "SELECT id, type, value, unit, context, notes, systolic, diastolic, recorded_at FROM measurements WHERE patient_id = $1 ORDER BY recorded_at DESC LIMIT $2",
     [patientId, limit]
   );
   return rows;
@@ -66,7 +66,7 @@ export async function getChartData(
   from?: string,
   to?: string
 ) {
-  let query = `SELECT id, type, value, unit, context, notes, recorded_at
+  let query = `SELECT id, type, value, unit, context, notes, systolic, diastolic, recorded_at
                FROM measurements WHERE patient_id = $1 AND type = $2`;
   const queryParams: (number | string)[] = [patientId, type];
 
@@ -98,8 +98,32 @@ export async function getChartData(
   return { type, data: dataResult.rows, referenceRanges };
 }
 
+const MEASUREMENT_WINDOW_MS = 20 * 60 * 60 * 1000; // 20 hours
+
 export async function create(input: CreateMeasurementInput) {
   const { patientId, type, value, systolic, diastolic, context, notes } = input;
+
+  // Server-side enforcement of 20-hour measurement window for glucemia
+  if (type === "glucemia" && context && context !== "random") {
+    const { rows: recent } = await pool.query(
+      `SELECT recorded_at, context FROM measurements
+       WHERE patient_id = $1 AND type = 'glucemia' AND context IS NOT NULL AND context != 'random'
+       ORDER BY recorded_at DESC LIMIT 1`,
+      [patientId]
+    );
+
+    if (recent.length > 0) {
+      const lastTime = new Date(recent[0].recorded_at).getTime();
+      const elapsed = Date.now() - lastTime;
+      if (elapsed < MEASUREMENT_WINDOW_MS) {
+        const hoursLeft = Math.ceil((MEASUREMENT_WINDOW_MS - elapsed) / (60 * 60 * 1000));
+        return {
+          error: `Debés esperar ${hoursLeft} hora${hoursLeft > 1 ? "s" : ""} antes de registrar otra medición de glucemia`,
+          windowViolation: true,
+        };
+      }
+    }
+  }
 
   let measValue: number;
   let unit: string;
@@ -108,7 +132,6 @@ export async function create(input: CreateMeasurementInput) {
   if (type === "blood_pressure") {
     measValue = systolic!;
     unit = "mmHg";
-    measNotes = `diastolic:${diastolic}${notes ? ` ${notes}` : ""}`;
   } else if (type === "glucemia") {
     measValue = Number(value) || 0;
     unit = "mg/dL";
@@ -121,9 +144,11 @@ export async function create(input: CreateMeasurementInput) {
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO measurements (patient_id, type, value, unit, context, recorded_by, notes, recorded_at)
-     VALUES ($1, $2, $3, $4, $5, 'self', $6, NOW()) RETURNING *`,
-    [patientId, type, measValue, unit, context || null, measNotes]
+    `INSERT INTO measurements (patient_id, type, value, unit, context, recorded_by, notes, systolic, diastolic, recorded_at)
+     VALUES ($1, $2, $3, $4, $5, 'self', $6, $7, $8, NOW()) RETURNING *`,
+    [patientId, type, measValue, unit, context || null, measNotes,
+     type === "blood_pressure" ? systolic! : null,
+     type === "blood_pressure" ? diastolic! : null]
   );
 
   const measurement = rows[0];
