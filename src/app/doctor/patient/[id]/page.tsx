@@ -626,7 +626,10 @@ export default function PatientDetailPage() {
         )}
 
         {tab === "seguimiento" && (
-          <DoctorCheckupPanel patientId={patientId} onReload={load} />
+          <>
+            <DoctorCheckupPanel patientId={patientId} onReload={load} />
+            <LabResultsPanel patientId={patientId} />
+          </>
         )}
 
         {tab === "historia" && (
@@ -1431,6 +1434,12 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
                                             ))}
                                           </tbody>
                                         </table>
+                                        <VerifyParsedResultsButton
+                                          attachmentId={att.id}
+                                          tests={att.parsed_data.tests}
+                                          patientId={patientId}
+                                          onVerified={() => { loadCheckups(); }}
+                                        />
                                       </div>
                                     )}
 
@@ -1456,6 +1465,464 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
         </div>
       )}
       </div>
+    </div>
+  );
+}
+
+// --- Analyte mapping for parsed test names ---
+
+const ANALYTE_ALIASES: Record<string, string> = {
+  hba1c: "hba1c", "hemoglobina glicosilada": "hba1c", "hemoglobina glucosilada": "hba1c", "hb a1c": "hba1c",
+  "glucosa en ayunas": "glucose_fasting", "glucemia en ayunas": "glucose_fasting", "glucose fasting": "glucose_fasting",
+  "glucemia basal": "glucose_fasting", glucosa: "glucose_fasting", glucemia: "glucose_fasting",
+  "colesterol total": "total_cholesterol", colesterol: "total_cholesterol", "total cholesterol": "total_cholesterol",
+  hdl: "hdl", "hdl-c": "hdl", "hdl colesterol": "hdl",
+  ldl: "ldl", "ldl-c": "ldl", "ldl colesterol": "ldl",
+  "triglicéridos": "triglycerides", trigliceridos: "triglycerides", triglycerides: "triglycerides",
+  urea: "urea",
+  creatinina: "creatinine", creatinine: "creatinine",
+};
+
+const ANALYTE_LABELS: Record<string, string> = {
+  hba1c: "HbA1c",
+  glucose_fasting: "Glucosa en ayunas",
+  total_cholesterol: "Colesterol total",
+  hdl: "HDL",
+  ldl: "LDL",
+  triglycerides: "Triglicéridos",
+  urea: "Urea",
+  creatinine: "Creatinina",
+};
+
+const VALID_ANALYTES = Object.keys(ANALYTE_LABELS);
+
+const TIMEPOINT_LABELS: Record<string, string> = {
+  baseline: "Basal",
+  month_3: "Mes 3",
+  month_6: "Mes 6",
+  unscheduled: "No programado",
+};
+
+function matchAnalyte(testName: string): string | null {
+  const lower = testName.toLowerCase().trim();
+  if (ANALYTE_ALIASES[lower]) return ANALYTE_ALIASES[lower];
+  for (const [alias, analyte] of Object.entries(ANALYTE_ALIASES)) {
+    if (lower.includes(alias)) return analyte;
+  }
+  return null;
+}
+
+// --- Verify Parsed Results Button ---
+
+interface VerifyParsedResultsButtonProps {
+  attachmentId: number;
+  tests: Array<{ name: string; value: number | string; unit: string | null; reference_range: string | null; flag: string }>;
+  patientId: string;
+  onVerified: () => void;
+}
+
+function VerifyParsedResultsButton({ attachmentId, tests, patientId, onVerified }: VerifyParsedResultsButtonProps) {
+  const [showVerify, setShowVerify] = useState(false);
+  const [verifyTimepoint, setVerifyTimepoint] = useState("unscheduled");
+  const [verifyDate, setVerifyDate] = useState(new Date().toISOString().split("T")[0]);
+  const [editedTests, setEditedTests] = useState<Array<{
+    name: string; analyte: string | null; value: string; unit: string; include: boolean;
+  }>>([]);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState("");
+
+  function initEditedTests() {
+    setEditedTests(
+      tests.map(t => {
+        const analyte = matchAnalyte(t.name);
+        return {
+          name: t.name,
+          analyte,
+          value: String(t.value),
+          unit: t.unit || "",
+          include: analyte !== null,
+        };
+      })
+    );
+  }
+
+  async function handleVerify() {
+    setVerifying(true);
+    setVerifyMsg("");
+    try {
+      const toCreate = editedTests.filter(t => t.include && t.analyte);
+      if (toCreate.length === 0) {
+        setVerifyMsg("Seleccioná al menos un resultado para verificar");
+        setVerifying(false);
+        return;
+      }
+
+      // Create lab results from parsed data
+      const createdIds: number[] = [];
+      for (const t of toCreate) {
+        const res = await fetch(`/api/doctor/patient/${patientId}/labs`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            timepoint: verifyTimepoint,
+            collectedOn: verifyDate,
+            analyte: t.analyte,
+            value: Number(t.value),
+            unit: t.unit,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          createdIds.push(data.result.id);
+        } else {
+          const err = await res.json();
+          setVerifyMsg(`Error en ${t.name}: ${err.error}`);
+          setVerifying(false);
+          return;
+        }
+      }
+
+      setVerifyMsg(`${createdIds.length} resultado(s) verificados correctamente`);
+      setShowVerify(false);
+      onVerified();
+    } catch {
+      setVerifyMsg("Error de conexión");
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  if (!showVerify) {
+    return (
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          onClick={() => { initEditedTests(); setShowVerify(true); }}
+          className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition"
+        >
+          Verificar resultados
+        </button>
+        {verifyMsg && <span className="text-xs text-green-600">{verifyMsg}</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 bg-emerald-50/50 rounded-xl p-3 border border-emerald-200 space-y-3">
+      <h5 className="text-xs font-semibold text-emerald-800">Verificar resultados de laboratorio</h5>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Timepoint</label>
+          <select
+            value={verifyTimepoint}
+            onChange={e => setVerifyTimepoint(e.target.value)}
+            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="baseline">Basal</option>
+            <option value="month_3">Mes 3</option>
+            <option value="month_6">Mes 6</option>
+            <option value="unscheduled">No programado</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Fecha de recolección</label>
+          <input
+            type="date"
+            value={verifyDate}
+            onChange={e => setVerifyDate(e.target.value)}
+            max={new Date().toISOString().split("T")[0]}
+            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-emerald-500"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {editedTests.map((t, i) => (
+          <div key={i} className={`flex items-center gap-2 p-2 rounded-lg border ${t.include ? "bg-white border-emerald-200" : "bg-gray-50 border-gray-200 opacity-60"}`}>
+            <input
+              type="checkbox"
+              checked={t.include}
+              onChange={e => {
+                const updated = [...editedTests];
+                updated[i] = { ...updated[i], include: e.target.checked };
+                setEditedTests(updated);
+              }}
+              className="shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600 truncate">{t.name}</span>
+                {t.analyte ? (
+                  <span className="text-xs text-emerald-600 font-medium shrink-0">{ANALYTE_LABELS[t.analyte]}</span>
+                ) : (
+                  <select
+                    value={t.analyte || ""}
+                    onChange={e => {
+                      const updated = [...editedTests];
+                      updated[i] = { ...updated[i], analyte: e.target.value || null, include: !!e.target.value };
+                      setEditedTests(updated);
+                    }}
+                    className="text-xs border border-gray-200 rounded px-1 py-0.5 outline-none"
+                  >
+                    <option value="">-- Asignar analito --</option>
+                    {VALID_ANALYTES.map(a => <option key={a} value={a}>{ANALYTE_LABELS[a]}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+            <input
+              type="number"
+              value={t.value}
+              onChange={e => {
+                const updated = [...editedTests];
+                updated[i] = { ...updated[i], value: e.target.value };
+                setEditedTests(updated);
+              }}
+              step="0.001"
+              className="w-20 px-2 py-1 border border-gray-200 rounded text-xs text-right outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+            <input
+              type="text"
+              value={t.unit}
+              onChange={e => {
+                const updated = [...editedTests];
+                updated[i] = { ...updated[i], unit: e.target.value };
+                setEditedTests(updated);
+              }}
+              className="w-16 px-2 py-1 border border-gray-200 rounded text-xs outline-none focus:ring-1 focus:ring-emerald-500"
+              placeholder="unidad"
+            />
+          </div>
+        ))}
+      </div>
+
+      {verifyMsg && <p className="text-xs text-red-600">{verifyMsg}</p>}
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleVerify}
+          disabled={verifying || !verifyDate || editedTests.filter(t => t.include && t.analyte).length === 0}
+          className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-50 transition"
+        >
+          {verifying ? "Verificando..." : `Verificar ${editedTests.filter(t => t.include && t.analyte).length} resultado(s)`}
+        </button>
+        <button
+          onClick={() => setShowVerify(false)}
+          className="px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- Lab Results Panel ---
+
+interface LabResult {
+  id: number;
+  patient_id: number;
+  timepoint: string;
+  collected_on: string;
+  analyte: string;
+  value: string;
+  unit: string;
+  source: string;
+  verified_by: number | null;
+  verified_at: string | null;
+  attachment_id: number | null;
+  verified_by_first_name: string | null;
+  verified_by_last_name: string | null;
+}
+
+function LabResultsPanel({ patientId }: { patientId: string }) {
+  const [results, setResults] = useState<LabResult[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualTimepoint, setManualTimepoint] = useState("unscheduled");
+  const [manualDate, setManualDate] = useState(new Date().toISOString().split("T")[0]);
+  const [manualAnalyte, setManualAnalyte] = useState("hba1c");
+  const [manualValue, setManualValue] = useState("");
+  const [manualUnit, setManualUnit] = useState("%");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const UNIT_DEFAULTS: Record<string, string> = {
+    hba1c: "%", glucose_fasting: "mg/dL", total_cholesterol: "mg/dL",
+    hdl: "mg/dL", ldl: "mg/dL", triglycerides: "mg/dL",
+    urea: "mg/dL", creatinine: "mg/dL",
+  };
+
+  const loadResults = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/doctor/patient/${patientId}/labs`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setResults(data.results || []);
+      }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [patientId]);
+
+  useEffect(() => { loadResults(); }, [loadResults]);
+
+  async function handleManualSave() {
+    setSaving(true); setMsg("");
+    try {
+      const res = await fetch(`/api/doctor/patient/${patientId}/labs`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          timepoint: manualTimepoint,
+          collectedOn: manualDate,
+          analyte: manualAnalyte,
+          value: Number(manualValue),
+          unit: manualUnit,
+        }),
+      });
+      if (res.ok) {
+        setMsg("Resultado guardado");
+        setManualValue("");
+        setShowManualForm(false);
+        loadResults();
+      } else {
+        const d = await res.json();
+        setMsg(d.error || "Error");
+      }
+    } catch { setMsg("Error de conexión"); }
+    finally { setSaving(false); }
+  }
+
+  // Group results by timepoint and collected_on
+  const grouped: Record<string, LabResult[]> = {};
+  for (const r of results) {
+    const key = `${r.timepoint}|${r.collected_on}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(r);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-gray-800">Resultados de Laboratorio</h3>
+        <button
+          onClick={() => setShowManualForm(!showManualForm)}
+          className="text-sm bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-xl transition"
+        >
+          {showManualForm ? "Cancelar" : "+ Cargar manualmente"}
+        </button>
+      </div>
+
+      {msg && (
+        <div className={`p-2 rounded-lg text-sm text-center font-medium mb-4 ${msg.includes("Error") || msg.includes("error") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+          {msg}
+        </div>
+      )}
+
+      {showManualForm && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Timepoint</label>
+              <select value={manualTimepoint} onChange={e => setManualTimepoint(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="baseline">Basal</option>
+                <option value="month_3">Mes 3</option>
+                <option value="month_6">Mes 6</option>
+                <option value="unscheduled">No programado</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Fecha de recolección</label>
+              <input type="date" value={manualDate} onChange={e => setManualDate(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Analito</label>
+              <select value={manualAnalyte} onChange={e => { setManualAnalyte(e.target.value); setManualUnit(UNIT_DEFAULTS[e.target.value] || "mg/dL"); }}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                {VALID_ANALYTES.map(a => <option key={a} value={a}>{ANALYTE_LABELS[a]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Valor</label>
+              <div className="flex gap-2">
+                <input type="number" value={manualValue} onChange={e => setManualValue(e.target.value)}
+                  step="0.001" placeholder="Ej: 6.5"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                <input type="text" value={manualUnit} onChange={e => setManualUnit(e.target.value)}
+                  className="w-20 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Unidad" />
+              </div>
+            </div>
+          </div>
+          <button onClick={handleManualSave} disabled={saving || !manualValue || !manualDate}
+            className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition">
+            {saving ? "Guardando..." : "Guardar resultado"}
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-4"><div className="animate-spin w-6 h-6 border-3 border-primary-500 border-t-transparent rounded-full" /></div>
+      ) : results.length === 0 ? (
+        <p className="text-gray-400 text-sm">Sin resultados de laboratorio registrados</p>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(grouped).map(([key, items]) => {
+            const [timepoint, collectedOn] = key.split("|");
+            return (
+              <div key={key} className="border border-gray-100 rounded-xl overflow-hidden">
+                <div className="bg-gray-50 px-4 py-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-700">{TIMEPOINT_LABELS[timepoint] || timepoint}</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(collectedOn + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })}
+                    </span>
+                  </div>
+                  {items.every(r => r.verified_by) ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Verificado</span>
+                  ) : items.some(r => !r.verified_by) ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pendiente de verificación</span>
+                  ) : null}
+                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 text-left border-b border-gray-100">
+                      <th className="px-4 py-2 font-medium">Analito</th>
+                      <th className="px-4 py-2 font-medium text-right">Valor</th>
+                      <th className="px-4 py-2 font-medium text-center">Fuente</th>
+                      <th className="px-4 py-2 font-medium text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(r => (
+                      <tr key={r.id} className="border-t border-gray-50">
+                        <td className="px-4 py-2 text-gray-700">{ANALYTE_LABELS[r.analyte] || r.analyte}</td>
+                        <td className="px-4 py-2 text-right font-medium text-gray-800">{Number(r.value).toFixed(r.analyte === "hba1c" ? 1 : r.analyte === "creatinine" ? 2 : 0)} {r.unit}</td>
+                        <td className="px-4 py-2 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-xs ${r.source === "manual" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"}`}>
+                            {r.source === "manual" ? "Manual" : "IA"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {r.verified_by ? (
+                            <span className="px-1.5 py-0.5 rounded text-xs bg-green-50 text-green-600 font-medium">Verificado</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-xs bg-amber-50 text-amber-600 font-medium">Sin verificar</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -128,3 +128,58 @@ export const verifyEmailSchema = z.object({
 export const resendVerificationSchema = z.object({
   email: z.string().email("Email válido requerido"),
 });
+
+// Study schemas
+
+export const studyArmEnum = z.enum(["intervention", "control"], {
+  error: "Brazo debe ser intervention o control",
+});
+
+export const enrollParticipantSchema = z.object({
+  patientId: z.number({ message: "patient_id requerido" }).int().positive(),
+  arm: studyArmEnum,
+  consentVersion: z.string().min(1, "Versión de consentimiento requerida"),
+  consentSignedAt: z.string().min(1, "Fecha de firma requerida"),
+  baselineHba1c: z.number().min(0).max(20).optional(),
+});
+
+export const changeArmSchema = z.object({
+  newArm: studyArmEnum,
+  reason: z.string().min(1, "Razón requerida"),
+});
+
+export const withdrawParticipantSchema = z.object({
+  reason: z.string().min(1, "Razón requerida"),
+});
+
+export const screeningSchema = z.object({
+  patientId: z.number({ message: "patient_id requerido" }).int().positive(),
+  eligible: z.boolean({ message: "eligible requerido" }),
+  reason: z.string().optional(),
+});
+
+export const incidentSchema = z.object({
+  participantId: z.number({ message: "participant_id requerido" }).int().positive(),
+  occurredOn: z.string().min(1, "Fecha requerida"),
+  kind: z.string().min(1, "Tipo de incidente requerido"),
+  description: z.string().min(1, "Descripción requerida"),
+});
+
+export const manualLabResultSchema = z.object({
+  timepoint: z.enum(["baseline", "month_3", "month_6", "unscheduled"], {
+    message: "Timepoint debe ser baseline, month_3, month_6 o unscheduled",
+  }),
+  collectedOn: z.string().min(1, "Fecha de recolección requerida"),
+  analyte: z.enum(
+    ["hba1c", "glucose_fasting", "total_cholesterol", "hdl", "ldl", "triglycerides", "urea", "creatinine"],
+    { message: "Analito inválido" }
+  ),
+  value: z.number({ message: "Valor numérico requerido" }).positive("El valor debe ser positivo"),
+  unit: z.string().min(1, "Unidad requerida").max(30),
+});
+
+export const verifyLabResultsSchema = z.object({
+  labResultIds: z.array(
+    z.number().int().positive()
+  ).min(1, "Al menos un resultado requerido"),
+});
