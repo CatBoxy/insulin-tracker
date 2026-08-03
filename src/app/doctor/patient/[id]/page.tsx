@@ -102,6 +102,10 @@ export default function PatientDetailPage() {
   const [measDateFrom, setMeasDateFrom] = useState("");
   const [measDateTo, setMeasDateTo] = useState("");
   const measPerPage = 20;
+  const [measServerPage, setMeasServerPage] = useState(1);
+  const [measServerTotal, setMeasServerTotal] = useState(0);
+  const [measServerTotalPages, setMeasServerTotalPages] = useState(1);
+  const [measLoadingMore, setMeasLoadingMore] = useState(false);
 
   // Doctor indices
   const [indices, setIndices] = useState<Array<{ id: number; calf_circumference_cm: number | null; dynamometer_force_mmlm: number | null; chair_test_seconds: number | null; insulin_resistance_index: number | null; recorded_at: string }>>([]);
@@ -130,6 +134,9 @@ export default function PatientDetailPage() {
       const data = await res.json();
       setPatient(data.patient);
       setMeasurements(data.measurements || []);
+      setMeasServerTotal(data.measurementsTotal || 0);
+      setMeasServerTotalPages(data.measurementsTotalPages || 1);
+      setMeasServerPage(1);
       setAlerts(data.alerts || []);
       setPrescriptions(data.prescriptions || []);
       setAppointments(data.appointments || []);
@@ -172,6 +179,21 @@ export default function PatientDetailPage() {
   }, [patientId, router]);
 
   useEffect(() => { load(); }, [load]);
+
+  async function loadMoreMeasurements() {
+    if (measServerPage >= measServerTotalPages) return;
+    setMeasLoadingMore(true);
+    try {
+      const nextPage = measServerPage + 1;
+      const res = await fetch(`/api/doctor/patients/${patientId}?measPage=${nextPage}&measLimit=50`, { credentials: "include" });
+      if (res.ok) {
+        const d = await res.json();
+        setMeasurements(prev => [...prev, ...(d.measurements || [])]);
+        setMeasServerPage(nextPage);
+      }
+    } catch { /* ignore */ }
+    finally { setMeasLoadingMore(false); }
+  }
 
   if (loading || !patient) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -421,6 +443,17 @@ export default function PatientDetailPage() {
                   </>
                 );
               })()}
+              {measServerPage < measServerTotalPages && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    onClick={loadMoreMeasurements}
+                    disabled={measLoadingMore}
+                    className="px-6 py-3 text-sm font-medium text-primary-600 border border-primary-200 rounded-xl hover:bg-primary-50 transition min-h-[44px] disabled:opacity-50"
+                  >
+                    {measLoadingMore ? "Cargando..." : `Cargar más mediciones (${measurements.length} de ${measServerTotal})`}
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}

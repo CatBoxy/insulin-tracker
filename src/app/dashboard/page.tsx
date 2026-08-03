@@ -34,6 +34,10 @@ function DashboardContent() {
   const [linkPrompt, setLinkPrompt] = useState<{ code: string; name: string } | null>(null);
   const [linkMsg, setLinkMsg] = useState("");
   const [checkupNeedsAttention, setCheckupNeedsAttention] = useState(false);
+  const [measPage, setMeasPage] = useState(1);
+  const [measTotal, setMeasTotal] = useState(0);
+  const [measTotalPages, setMeasTotalPages] = useState(1);
+  const [measLoadingMore, setMeasLoadingMore] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -54,7 +58,7 @@ function DashboardContent() {
 
       // Load other data independently — don't redirect on failure
       const [measRes, alertRes, medRes, apptRes] = await Promise.all([
-        fetch("/api/measurements?limit=500", { credentials: "include" }).catch(() => null),
+        fetch("/api/measurements?page=1&limit=50", { credentials: "include" }).catch(() => null),
         fetch("/api/alerts", { credentials: "include" }).catch(() => null),
         fetch("/api/medications", { credentials: "include" }).catch(() => null),
         fetch("/api/appointments?upcoming=true", { credentials: "include" }).catch(() => null),
@@ -63,6 +67,9 @@ function DashboardContent() {
       if (measRes?.ok) {
         const d = await measRes.json().catch(() => ({}));
         setMeasurements(d.measurements || []);
+        setMeasTotal(d.total || 0);
+        setMeasTotalPages(d.totalPages || 1);
+        setMeasPage(1);
       }
       if (alertRes?.ok) {
         const d = await alertRes.json().catch(() => ({}));
@@ -93,6 +100,21 @@ function DashboardContent() {
   }, [router]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  async function loadMoreMeasurements() {
+    if (measPage >= measTotalPages) return;
+    setMeasLoadingMore(true);
+    try {
+      const nextPage = measPage + 1;
+      const res = await fetch(`/api/measurements?page=${nextPage}&limit=50`, { credentials: "include" });
+      if (res.ok) {
+        const d = await res.json();
+        setMeasurements(prev => [...prev, ...(d.measurements || [])]);
+        setMeasPage(nextPage);
+      }
+    } catch { /* ignore */ }
+    finally { setMeasLoadingMore(false); }
+  }
 
   useEffect(() => {
     if (doctorCode) {
@@ -453,6 +475,19 @@ function DashboardContent() {
             <p className="text-gray-400 text-sm">Sin registros suficientes para mostrar el gráfico</p>
           )}
         </div>
+
+        {/* Load more measurements */}
+        {measPage < measTotalPages && (
+          <div className="flex justify-center">
+            <button
+              onClick={loadMoreMeasurements}
+              disabled={measLoadingMore}
+              className="px-6 py-3 text-sm font-medium text-primary-600 border border-primary-200 rounded-xl hover:bg-primary-50 transition min-h-[44px] disabled:opacity-50"
+            >
+              {measLoadingMore ? "Cargando..." : `Cargar más mediciones (${measurements.length} de ${measTotal})`}
+            </button>
+          </div>
+        )}
 
         {/* Medications */}
         {medications.length > 0 && (

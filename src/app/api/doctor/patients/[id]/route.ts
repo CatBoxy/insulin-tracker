@@ -25,7 +25,12 @@ export async function GET(
       return NextResponse.json({ error: "Sin acceso a este paciente" }, { status: 403 });
     }
 
-    const result = await doctorService.getPatientDetail(pid, doctorId);
+    const pageParam = request.nextUrl.searchParams.get("measPage");
+    const limitParam = request.nextUrl.searchParams.get("measLimit");
+    const measPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+    const measLimit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 200) : 50;
+
+    const result = await doctorService.getPatientDetail(pid, doctorId, measPage, measLimit);
     if (!result) {
       return NextResponse.json({ error: "Paciente no encontrado" }, { status: 404 });
     }

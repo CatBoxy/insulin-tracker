@@ -19,11 +19,21 @@ export async function GET(request: NextRequest) {
 
     if (!patientId) return NextResponse.json({ measurements: [] });
 
+    const pageParam = request.nextUrl.searchParams.get("page");
     const limitParam = request.nextUrl.searchParams.get("limit");
-    const limit = limitParam ? Math.min(Number(limitParam), 1000) : 50;
+    const typeParam = request.nextUrl.searchParams.get("type") || undefined;
 
-    const measurements = await measurementsService.listByPatient(patientId, limit);
-    return NextResponse.json({ measurements });
+    const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+    const limit = limitParam ? Math.min(Math.max(1, parseInt(limitParam, 10) || 50), 200) : 50;
+
+    const result = await measurementsService.listPaginated(patientId, { page, limit, type: typeParam });
+    return NextResponse.json({
+      measurements: result.data,
+      total: result.pagination.total,
+      page: result.pagination.page,
+      limit: result.pagination.limit,
+      totalPages: result.pagination.totalPages,
+    });
   } catch (error) {
     console.error("GET /api/measurements error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });

@@ -70,7 +70,7 @@ export async function verifyAccess(doctorId: number, patientId: number): Promise
   return rows.length > 0;
 }
 
-export async function getPatientDetail(patientId: number, doctorId: number) {
+export async function getPatientDetail(patientId: number, doctorId: number, measPage = 1, measLimit = 50) {
   const { rows: patientRows } = await pool.query(`
     SELECT p.*, u.email, u.first_name, u.last_name
     FROM patients p
@@ -80,11 +80,17 @@ export async function getPatientDetail(patientId: number, doctorId: number) {
 
   if (patientRows.length === 0) return null;
 
-  const [measurements, alerts, prescriptions, appointments] = await Promise.all([
+  const measOffset = (measPage - 1) * measLimit;
+
+  const [measurements, measCount, alerts, prescriptions, appointments] = await Promise.all([
     pool.query(
       `SELECT id, type, value, unit, context, notes, recorded_at
        FROM measurements WHERE patient_id = $1
-       ORDER BY recorded_at DESC LIMIT 500`,
+       ORDER BY recorded_at DESC LIMIT $2 OFFSET $3`,
+      [patientId, measLimit, measOffset]
+    ),
+    pool.query(
+      `SELECT COUNT(*)::int as total FROM measurements WHERE patient_id = $1`,
       [patientId]
     ),
     pool.query(
@@ -107,9 +113,14 @@ export async function getPatientDetail(patientId: number, doctorId: number) {
     ),
   ]);
 
+  const measTotal = measCount.rows[0].total;
+
   return {
     patient: patientRows[0],
     measurements: measurements.rows,
+    measurementsTotal: measTotal,
+    measurementsPage: measPage,
+    measurementsTotalPages: Math.ceil(measTotal / measLimit),
     alerts: alerts.rows,
     prescriptions: prescriptions.rows,
     appointments: appointments.rows,
