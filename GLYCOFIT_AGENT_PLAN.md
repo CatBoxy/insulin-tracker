@@ -91,9 +91,9 @@ Settled. Don't re-litigate without checking with Jc.
 | Arms | Control + intervention, ~50/50 |
 | Total N | Flexible — never hardcoded |
 | Arm differences | Admin-managed feature flags, fully audited |
-| Message channels | WhatsApp for reminders, push for in-app events. **Split by type — no message goes out on both** |
-| WhatsApp provider | Meta Cloud API **direct, no BSP** |
-| WhatsApp category | **Utility only.** Education/motivational content stays in-app on push |
+| Message channels | **Android + push is the primary intervention channel.** WhatsApp is a nice-to-have (revised 2026-08-05). Split by type — no message goes out on both |
+| WhatsApp provider | Meta Cloud API direct, no BSP — **deferred, no longer a launch blocker** |
+| WhatsApp category | Utility only if implemented. Education/motivational content stays in-app on push |
 | Message frequency | Start at 1/day; full schedule TBD. Must be data, not constants |
 | Template authoring | Full admin UI with versioning and doctor approval |
 | Android | Signed APK first, then Play Store |
@@ -209,6 +209,54 @@ Files: `src/app/api/measurements/`, `src/services/measurements.service.ts`, both
 Measurements currently pull up to 1000 rows. Add limit/offset or cursor pagination, defaulting to a sane page size, and update both clients.
 
 *Acceptance:* endpoints accept pagination params and return total counts; charts still render correctly.
+
+---
+
+### PHASE 0.5 — Ops Hardening
+
+*Small, independent, do them while waiting on Alfredo.*
+
+---
+
+**P0.5-1 — Close port 5432**
+Depends on: nothing
+
+Postgres is currently reachable from `45.175.103.0/24`, a residential ISP block. That is potentially several hundred other subscribers with network reach to study participants' health data.
+
+- Remove the UFW allow rule for 5432; bind Postgres to `localhost` only via `ALTER SYSTEM`
+- Access from the workstation via `ssh -L 5432:localhost:5432 claude-bot`
+- Update local `DATABASE_URL` in `.env.local` to `localhost:5432`
+- Verify from an outside network that 5432 no longer answers
+
+*Acceptance:* `nmap -p 5432` from an off-network host reports filtered/closed, and local psql still works through the tunnel.
+
+---
+
+**P0.5-2 — Third-party processor inventory**
+Depends on: nothing
+
+Consent §6 tells participants their data is seen by authorized personnel, the ethics committee, or control authorities. It does not mention US-hosted processors. Patient-derived content currently flows to Google (Gemini — for lab parsing and message personalization), Backblaze (backups), Cloudinary (file storage), and Resend (email).
+
+Produce `docs/PROCESAMIENTO_DE_DATOS.md` listing, per processor: what data reaches it, why, where it is stored, and retention. Hand to Alfredo for the consent form **before** the ethics submission.
+
+*Acceptance:* the document exists and Alfredo has confirmed receipt.
+
+---
+
+**P0.5-3 — Tests for the arm gate and scheduler**
+Depends on: nothing
+
+Two pieces of code can silently destroy six months of irrecoverable data: `checkArmGate()` and the scheduler. A control-arm patient receiving one message contaminates the arm.
+
+Minimum coverage:
+- Control participant → gate refuses, refusal is logged
+- Intervention participant → gate allows
+- Withdrawn participant → gate refuses regardless of arm
+- Participant with no study record → gate refuses
+- Scheduler run twice over the same window → no duplicate sends
+- Inactivity rule fires once, then not again until an interaction is recorded
+
+*Acceptance:* these run in CI on push to main.
 
 ---
 
@@ -436,6 +484,151 @@ Template management comes later, in P2-9.
 
 ---
 
+### PHASE 1.5 — Protocol Compliance
+
+*Every task here traces to a specific line in the protocol or consent form. All must land before first enrollment.*
+
+---
+
+**P1.5-1 — Study visit labelling** ⚠️ **HIGHEST-VALUE MISSING FIELD**
+Depends on: P1-1
+Files: new migration, `src/services/study.service.ts`, doctor UI
+
+Nothing marks which HbA1c is baseline vs month-3 vs month-6. Model visits explicitly:
+
+```sql
+CREATE TABLE study_visits (
+  id SERIAL PRIMARY KEY,
+  participant_id INTEGER NOT NULL REFERENCES study_participants(id),
+  visit_type TEXT NOT NULL CHECK (visit_type IN ('baseline','month_3','month_6')),
+  scheduled_date DATE,
+  performed_date DATE,
+  performed_by INTEGER REFERENCES doctors(id),
+  notes TEXT,
+  UNIQUE (participant_id, visit_type)
+);
+```
+
+Add nullable `study_visit_id` FK to `lab_results`, `doctor_indices`, `body_composition`, and `measurements` for clinic-taken readings. Doctor UI: when recording for an enrolled participant, offer "asociar a visita del estudio".
+
+*Acceptance:* enrolled participant has all three visits created at enrollment; every clinic-collected datum can be attributed to exactly one visit.
+
+---
+
+**P1.5-2 — Caregiver/companion role**
+Depends on: nothing
+Source: Protocol inclusion criteria + consent opt-in line
+
+```sql
+CREATE TABLE patient_caregivers (
+  id SERIAL PRIMARY KEY,
+  patient_id INTEGER NOT NULL REFERENCES patients(id),
+  user_id INTEGER REFERENCES users(id),
+  display_name TEXT NOT NULL,
+  relationship TEXT,
+  authorized_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  receives_notifications BOOLEAN NOT NULL DEFAULT false
+);
+```
+
+Decisions for Jc/Alfredo: Does the caregiver get a scoped login? Do reminders route to patient, caregiver, or both (per-patient setting)? If caregivers receive notifications, they need their own opt-in.
+
+*Acceptance:* enrollment screening can record a caregiver; notification recipient is explicit.
+
+---
+
+**P1.5-3 — In-app questionnaires**
+Depends on: P1.5-1
+Source: Consent §2, Instrumentos
+
+```sql
+CREATE TABLE questionnaires (id, code, title, description, active);
+CREATE TABLE questionnaire_items (id, questionnaire_id, item_order, prompt, response_type, options JSONB, required);
+CREATE TABLE questionnaire_responses (id, participant_id, questionnaire_id, study_visit_id, started_at, completed_at);
+CREATE TABLE questionnaire_answers (id, response_id, item_id, value TEXT);
+```
+
+Response types: single choice, Likert 1–5, numeric, free text. Instruments are versioned and immutable once responses exist.
+
+*Acceptance:* admin can define an instrument; patient can complete it on mobile and web; responses attributable to a study visit.
+
+---
+
+**P1.5-4 — Participant data export + deletion**
+Depends on: nothing
+Source: Consent §6, Ley 25.326
+
+Three operations:
+- **Access**: patient-facing "Descargar mis datos" (JSON + readable summary)
+- **Correction**: document what is/isn't editable; clinical data correction is doctor-mediated
+- **Erasure**: null out name/email/phone on `users` and `patients`, retain `participant_code` and clinical rows, write `study_incidents` entry. Admin-triggered, irreversible, with confirmation.
+
+*Acceptance:* all three operations exist and match the consent form's wording.
+
+---
+
+**P1.5-5 — Appointment attendance outcome**
+Depends on: nothing
+Source: Objetivo específico 5 — *frecuencia de asistencia a consultas*
+
+Add to `appointments`: `attendance_status` enum (`scheduled`|`attended`|`no_show`|`cancelled_by_patient`|`cancelled_by_clinic`|`rescheduled`), `attendance_recorded_at`, `attendance_recorded_by`.
+
+Doctor UI: one-tap attendance marking + daily list of yesterday's unrecorded appointments.
+
+*Acceptance:* no appointment older than 48h remains in `scheduled`, enforced by admin-visible list.
+
+---
+
+**P1.5-6 — Mobile media permission scoping**
+Depends on: nothing
+Source: Consent §6 — *La aplicación no deberá acceder a fotos, contactos o conversaciones ajenas al estudio*
+
+Audit Expo permissions. Switch attachment upload to `expo-document-picker` or camera-only (no library access). Never request CONTACTS or SMS. Review `app.json` declarations.
+
+*Acceptance:* Android manifest contains no media library, contacts, or SMS permission; attachment upload still works.
+
+---
+
+**P1.5-7 — Personalization provenance log**
+Depends on: P2-8
+Source: Title claim — *mensajería personalizada con IA*
+
+For every generated message, persist: model identifier, template + version used, prompt inputs (context variables), raw model output before guardrails, whether guardrails modified/rejected it, whether fallback fired.
+
+Store on `messages` or a `message_generations` side table.
+
+*Acceptance:* any sent message can be traced back to exactly what produced it.
+
+---
+
+**P1.5-8 — Weekly self-monitoring aggregation**
+Depends on: P1-1
+Source: Operacionalización — *controles semanales*
+
+Define as: complete 7-day windows counted forward from enrollment date. Partial trailing weeks reported separately, never averaged in.
+
+Single SQL view or service function — nothing else may compute this differently.
+
+```
+participant_code | week_number | week_start | week_end
+                 | hemoglucotests | bp_checks | is_complete_week
+```
+
+*Acceptance:* function exists, is the only implementation, definition is written so the paper can quote it.
+
+---
+
+**P1.5-9 — Reproducible arm allocation**
+Depends on: P1-1
+Source: Design defensibility
+
+Add to `study_participants`: `allocation_method`, `allocation_sequence`, `allocated_at`. Default to alternating by enrollment sequence or seeded block randomization (Alfredo's call). Manual override requires written reason → `study_arm_audit`.
+
+*Acceptance:* arm assignment happens automatically at enrollment; every manual override has recorded justification.
+
+---
+
 ### PHASE 2 — Messaging engine
 
 *Goal: the study's independent variable exists, works, and is measurable. Build as **one engine with pluggable channels** — shared scheduler, templates, arm enforcement and log. `channel` is a column, never a fork in the code.*
@@ -464,7 +657,7 @@ A `Channel` interface with `send(message)` returning a provider id, plus adapter
 
 ---
 
-**P2-3 — WhatsApp Cloud API adapter**
+**P2-3 — WhatsApp Cloud API adapter** *(DEFERRED — no longer a launch blocker, revised 2026-08-05)*
 Depends on: P2-2, and Jc completing the Meta setup in §6
 Files: `src/services/messaging/whatsapp.ts`, `src/app/api/webhooks/whatsapp/route.ts`
 
@@ -828,15 +1021,19 @@ This is the cheapest insurance in the plan. Do not skip it.
 
 ---
 
-## §8 Open items
+## §8 Open items for Alfredo (revised 2026-08-05)
 
-Blocked on other people. Don't guess at these — flag and move on.
+Consolidated, ranked by how much rework each causes if answered late.
 
-1. **Message schedule detail** *(Alfredo)* — 1/day is the starting point. Which reminder type on which days, at what hour, and does frequency change over six months? Build the scheduler to take this as data.
-2. **WhatsApp portfolio legal entity** *(Jc)* — must match verification documents; visible to patients. Needed before §6 step 1.
-3. **Escalation policy** *(Alfredo)* — who is notified on an out-of-range reading, in what window, what the patient is told to expect. Blocks P2-10's policy values, not its mechanism.
-4. **Primary endpoint and sample size** *(Alfredo and his director)* — outside the build, but the protocol currently lists five co-equal objectives and no power calculation. Worth raising before it goes to review.
-5. **Consent and ethics annexes** — handled outside this project. The only build-relevant consequence: whatever it says about data access, retention, withdrawal and the WhatsApp channel must match what the system actually does. Ask before assuming.
+1. **Escalation policy** *(Alfredo)* — who is notified on an out-of-range reading, within what window, and what the patient is shown at that moment. His own marco teórico flags twice that this protocol is necessary; Material y Métodos does not define it. **Launch blocker.**
+2. **Analysis plan** *(Alfredo)* — the stats section lists only paired pre/post tests, which measure change *within* each arm and cannot answer whether the intervention arm changed more. Needs a between-group comparison (ANCOVA on the outcome with baseline as covariate is the stronger choice). Six months of collection against the wrong test is unrecoverable.
+3. **Sample size** *(Alfredo + director)* — no calculation anywhere. The committee will ask, and it determines what the export and the message scheduler are built against.
+4. **Consent amendment for processors** — see P0.5-2. Far cheaper before submission than as an amendment after.
+5. **Message schedule detail** *(Alfredo)* — 1/day is a starting point. Which message type on which days, at what hour.
+6. **Allocation rule** *(Alfredo)* — alternating, or seeded blocks? Needed for P1.5-9.
+7. **Analyte scope** — Anexo 2 requests more than Variables lists. Which enter the analysis?
+8. **Design label** — the protocol calls the design both quasi-experimental and *caso-control* in the same line. Those are different things, and with a prospective intervention it is not case-control.
+9. **Calendar** — the protocol has recruitment running August–September 2026 and the protocol has not reached the Comité de Ética. The dates need to move deliberately rather than by discovery.
 
 ---
 
@@ -854,3 +1051,4 @@ Blocked on other people. Don't guess at these — flag and move on.
 | 1.7 | 2026-08-04 | Completed P2-6 (inactivity protocol messaging rule — seed migration for `inactivity_reminder` template + schedule rule with 3-day threshold, fire-once dedup via `inactivityAlreadyFired()` that checks if message was sent after patient's last interaction, resends only after patient interacts and goes inactive again). Existing `missed_logging` alert (7 days, glucose-only, doctor notification) preserved as-is — different purpose from the 3-day messaging intervention. |
 | 1.8 | 2026-08-04 | Completed P2-9 (template authoring UI — service layer with immutable versioning, Zod schemas, 3 API routes, "Mensajes" tab in admin panel with template list/create/version history/approve/activate/deactivate/WA status tracking). Templates are immutable once used: editing creates version N+1. Unapproved templates cannot be activated. WhatsApp templates require both doctor + Meta approval. Variable placeholders highlighted in body preview. Protocol deviation banner on version creation. |
 | 1.9 | 2026-08-04 | Completed P2-7 (message telemetry and engagement metrics — telemetry service with 5 functions: getMessageLifecycle, getParticipantMessageStats, getActedUpon, getWeeklyEngagement, getStudyOverview). Acted-upon linkage checks for measurement within configurable window (default 4h) after delivery event. Weekly engagement groups by ISO week with messages received/opened, response rate, active days, sessions, measurements. Admin API routes at /api/admin/study/telemetry (overview) and /api/admin/study/telemetry/[participantId] (per-participant with date range). "Mensajería" section added to Estudio tab showing aggregate cards (sent, delivery/read/response rates) and per-channel breakdown table. |
+| 2.0 | 2026-08-05 | Plan addendum merged: added Phase 0.5 (ops hardening — close port 5432, processor inventory, arm gate tests) and Phase 1.5 (protocol compliance — 9 tasks tracing to protocol/consent). WhatsApp demoted from launch blocker to nice-to-have (Android + push is primary). Open items revised with 9 items for Alfredo ranked by rework cost. P2-3 marked as deferred. |
