@@ -570,7 +570,9 @@ An alert with no timely response creates **false reassurance** — this is named
 
 Also: the app is **not an emergency channel**. State this in the app and in template footers where it fits.
 
-*Blocked on Alfredo* — see §8. Build the mechanism; the policy values come from him.
+⚠️ **IMPORTANT TODO — BLOCKED ON ALFREDO.** The mechanism can be built anytime, but the policy values (who gets notified, time window, patient-facing message) are clinical decisions that must come from him before this ships. **Do not launch the study without this.** See §8.
+
+*Status: waiting on Alfredo's input. Raise this in the next meeting.*
 
 ---
 
