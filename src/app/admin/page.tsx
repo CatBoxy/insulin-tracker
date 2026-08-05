@@ -15,6 +15,7 @@ interface FlagAuditEntry { id: number; flag_key: string; arm: string; old_value:
 interface InactiveParticipant { participant_code: string; arm: string; first_name: string; last_name: string; last_activity: string | null }
 interface EnrollmentMonth { month: string; enrolled: number; intervention: number; control: number }
 interface DashboardData { total: number; interventionActive: number; controlActive: number; withdrawn: number; inactive: InactiveParticipant[]; enrollmentProgress: EnrollmentMonth[] }
+interface TelemetryOverview { totalSent: number; totalDelivered: number; totalRead: number; totalActedUpon: number; deliveryRate: number; readRate: number; responseRate: number; byChannel: { channel: string; sent: number; delivered: number; read: number }[]; byTemplate: { template_key: string; count: number }[] }
 interface TemplateGroup { key: string; channel: string; category: string; latest_version: number; active: boolean; approved_at: string | null; wa_status: string | null; template_id: number }
 interface TemplateVersion { id: number; key: string; version: number; channel: string; category: string; locale: string; body: string; variables: string[]; wa_template_name: string | null; wa_status: string | null; wa_approved_at: string | null; wa_rejection_reason: string | null; approved_by_doctor: number | null; approved_at: string | null; active: boolean; created_at: string }
 
@@ -69,6 +70,9 @@ export default function AdminPage() {
 
   // Dashboard state
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+
+  // Telemetry state
+  const [telemetry, setTelemetry] = useState<TelemetryOverview | null>(null);
 
   // ---- Messages tab state ----
   const [templates, setTemplates] = useState<TemplateGroup[]>([]);
@@ -157,6 +161,13 @@ export default function AdminPage() {
     } catch {}
   }, []);
 
+  const loadTelemetry = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/study/telemetry", { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setTelemetry(data); }
+    } catch {}
+  }, []);
+
   const loadTemplates = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/templates", { credentials: "include" });
@@ -181,8 +192,9 @@ export default function AdminPage() {
       loadFeatureFlags();
       loadFlagAudit();
       loadDashboard();
+      loadTelemetry();
     }
-  }, [activeTab, loadStudyPatients, loadParticipants, loadScreeningLog, loadFeatureFlags, loadFlagAudit, loadDashboard]);
+  }, [activeTab, loadStudyPatients, loadParticipants, loadScreeningLog, loadFeatureFlags, loadFlagAudit, loadDashboard, loadTelemetry]);
 
   useEffect(() => {
     if (activeTab === "messages") { loadTemplates(); }
@@ -735,6 +747,67 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">Cargando datos del estudio...</p>
+              )}
+            </div>
+
+            {/* Telemetry / Mensajería */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Mensajería</h3>
+              {telemetry ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-gray-800">{telemetry.totalSent}</p>
+                      <p className="text-xs text-gray-500 mt-1">Enviados</p>
+                    </div>
+                    <div className="bg-blue-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-blue-700">{(telemetry.deliveryRate * 100).toFixed(1)}%</p>
+                      <p className="text-xs text-blue-600 mt-1">Tasa de entrega</p>
+                    </div>
+                    <div className="bg-green-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-green-700">{(telemetry.readRate * 100).toFixed(1)}%</p>
+                      <p className="text-xs text-green-600 mt-1">Tasa de lectura</p>
+                    </div>
+                    <div className="bg-purple-50 rounded-xl p-4 text-center">
+                      <p className="text-2xl font-bold text-purple-700">{(telemetry.responseRate * 100).toFixed(1)}%</p>
+                      <p className="text-xs text-purple-600 mt-1">Tasa de respuesta</p>
+                    </div>
+                  </div>
+
+                  {telemetry.byChannel.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Por canal</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200 text-left">
+                              <th className="py-2 pr-3 font-medium text-gray-600">Canal</th>
+                              <th className="py-2 pr-3 font-medium text-gray-600">Enviados</th>
+                              <th className="py-2 pr-3 font-medium text-gray-600">Entregados</th>
+                              <th className="py-2 font-medium text-gray-600">Leídos</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {telemetry.byChannel.map(c => (
+                              <tr key={c.channel} className="border-b border-gray-50">
+                                <td className="py-2 pr-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${c.channel === "whatsapp" ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700"}`}>
+                                    {c.channel === "whatsapp" ? "WhatsApp" : "Push"}
+                                  </span>
+                                </td>
+                                <td className="py-2 pr-3 text-gray-800">{c.sent}</td>
+                                <td className="py-2 pr-3 text-gray-800">{c.delivered}</td>
+                                <td className="py-2 text-gray-800">{c.read}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">Cargando datos de mensajería...</p>
               )}
             </div>
 
