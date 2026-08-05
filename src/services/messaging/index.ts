@@ -10,6 +10,8 @@ export { registerChannel, getChannel, listChannels } from "./registry";
 export { sendMessage } from "./sender";
 export { recordEvent, updateMessageStatus } from "./events";
 export { registerToken, deactivateToken, getActiveTokens } from "./push-token";
+export { personalizeMessage } from "./personalize";
+export type { PersonalizationContext, PersonalizationResult } from "./personalize";
 
 // Self-register channel adapters
 import "./push";

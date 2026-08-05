@@ -15,8 +15,10 @@ interface FlagAuditEntry { id: number; flag_key: string; arm: string; old_value:
 interface InactiveParticipant { participant_code: string; arm: string; first_name: string; last_name: string; last_activity: string | null }
 interface EnrollmentMonth { month: string; enrolled: number; intervention: number; control: number }
 interface DashboardData { total: number; interventionActive: number; controlActive: number; withdrawn: number; inactive: InactiveParticipant[]; enrollmentProgress: EnrollmentMonth[] }
+interface TemplateGroup { key: string; channel: string; category: string; latest_version: number; active: boolean; approved_at: string | null; wa_status: string | null; template_id: number }
+interface TemplateVersion { id: number; key: string; version: number; channel: string; category: string; locale: string; body: string; variables: string[]; wa_template_name: string | null; wa_status: string | null; wa_approved_at: string | null; wa_rejection_reason: string | null; approved_by_doctor: number | null; approved_at: string | null; active: boolean; created_at: string }
 
-type Tab = "users" | "study";
+type Tab = "users" | "study" | "messages";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -67,6 +69,23 @@ export default function AdminPage() {
 
   // Dashboard state
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+
+  // ---- Messages tab state ----
+  const [templates, setTemplates] = useState<TemplateGroup[]>([]);
+  const [expandedTemplate, setExpandedTemplate] = useState<string | null>(null); // key+channel
+  const [templateVersions, setTemplateVersions] = useState<TemplateVersion[]>([]);
+  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  const [newTplKey, setNewTplKey] = useState("");
+  const [newTplChannel, setNewTplChannel] = useState<"whatsapp" | "push">("whatsapp");
+  const [newTplCategory, setNewTplCategory] = useState("");
+  const [newTplBody, setNewTplBody] = useState("");
+  const [newTplVariables, setNewTplVariables] = useState("");
+  const [tplMsg, setTplMsg] = useState("");
+  const [tplError, setTplError] = useState("");
+  const [tplLoading, setTplLoading] = useState(false);
+  const [editingVersion, setEditingVersion] = useState<number | null>(null); // template id being used as base for new version
+  const [editBody, setEditBody] = useState("");
+  const [editVariables, setEditVariables] = useState("");
 
   // Participant detail
   const [expandedParticipant, setExpandedParticipant] = useState<number | null>(null);
@@ -138,6 +157,20 @@ export default function AdminPage() {
     } catch {}
   }, []);
 
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/templates", { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setTemplates(data.templates || []); }
+    } catch {}
+  }, []);
+
+  const loadTemplateVersions = useCallback(async (templateId: number) => {
+    try {
+      const res = await fetch(`/api/admin/templates/${templateId}`, { credentials: "include" });
+      if (res.ok) { const data = await res.json(); setTemplateVersions(data.versions || []); }
+    } catch {}
+  }, []);
+
   useEffect(() => { loadUsers(); loadAssignments(); }, [loadUsers, loadAssignments]);
 
   useEffect(() => {
@@ -150,6 +183,10 @@ export default function AdminPage() {
       loadDashboard();
     }
   }, [activeTab, loadStudyPatients, loadParticipants, loadScreeningLog, loadFeatureFlags, loadFlagAudit, loadDashboard]);
+
+  useEffect(() => {
+    if (activeTab === "messages") { loadTemplates(); }
+  }, [activeTab, loadTemplates]);
 
   // ---- Users tab actions ----
   async function createUser(e: React.FormEvent) {
@@ -335,6 +372,106 @@ export default function AdminPage() {
     } catch { setFlagError("Error de conexion"); }
   }
 
+  // ---- Messages tab actions ----
+  async function createTemplate(e: React.FormEvent) {
+    e.preventDefault();
+    setTplLoading(true); setTplMsg(""); setTplError("");
+    try {
+      const variables = newTplVariables.trim() ? newTplVariables.split(",").map(v => v.trim()).filter(Boolean) : [];
+      const res = await fetch("/api/admin/templates", {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: newTplKey, channel: newTplChannel, category: newTplCategory, body: newTplBody, variables }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTplMsg("Template creado");
+        setNewTplKey(""); setNewTplChannel("whatsapp"); setNewTplCategory(""); setNewTplBody(""); setNewTplVariables("");
+        setShowCreateTemplate(false);
+        loadTemplates();
+      } else { setTplError(data.error || "Error"); }
+    } catch { setTplError("Error de conexion"); }
+    finally { setTplLoading(false); }
+  }
+
+  function toggleTemplate(key: string, channel: string, templateId: number) {
+    const compositeKey = `${key}::${channel}`;
+    if (expandedTemplate === compositeKey) {
+      setExpandedTemplate(null);
+      setTemplateVersions([]);
+      setEditingVersion(null);
+    } else {
+      setExpandedTemplate(compositeKey);
+      loadTemplateVersions(templateId);
+      setEditingVersion(null);
+    }
+    setTplMsg(""); setTplError("");
+  }
+
+  async function handleTemplateAction(templateId: number, action: string, extra?: Record<string, unknown>) {
+    setTplMsg(""); setTplError("");
+    try {
+      const res = await fetch(`/api/admin/templates/${templateId}`, {
+        credentials: "include",
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const labels: Record<string, string> = { approve: "Template aprobado", activate: "Template activado", deactivate: "Template desactivado", update_wa_status: "Estado WA actualizado" };
+        setTplMsg(labels[action] || "Actualizado");
+        loadTemplates();
+        // Reload versions for expanded template
+        const tpl = data.template;
+        if (tpl) loadTemplateVersions(tpl.id);
+      } else { setTplError(data.error || "Error"); }
+    } catch { setTplError("Error de conexion"); }
+  }
+
+  async function handleCreateVersion(baseTemplateId: number) {
+    setTplMsg(""); setTplError("");
+    try {
+      const variables = editVariables.trim() ? editVariables.split(",").map(v => v.trim()).filter(Boolean) : [];
+      const res = await fetch(`/api/admin/templates/${baseTemplateId}/version`, {
+        credentials: "include",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: editBody, variables }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTplMsg(`Version ${data.template.version} creada`);
+        setEditingVersion(null);
+        setEditBody(""); setEditVariables("");
+        loadTemplates();
+        loadTemplateVersions(data.template.id);
+      } else { setTplError(data.error || "Error"); }
+    } catch { setTplError("Error de conexion"); }
+  }
+
+  function startEditVersion(tpl: TemplateVersion) {
+    setEditingVersion(tpl.id);
+    setEditBody(tpl.body);
+    setEditVariables(Array.isArray(tpl.variables) ? tpl.variables.join(", ") : "");
+  }
+
+  const waStatusBadge = (status: string | null) => {
+    const map: Record<string, { label: string; color: string }> = {
+      draft: { label: "Borrador", color: "bg-gray-100 text-gray-600" },
+      submitted: { label: "Enviado", color: "bg-blue-100 text-blue-700" },
+      approved: { label: "Aprobado", color: "bg-green-100 text-green-700" },
+      rejected: { label: "Rechazado", color: "bg-red-100 text-red-700" },
+    };
+    const entry = map[status || "draft"] || map.draft;
+    return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${entry.color}`}>{entry.label}</span>;
+  };
+
+  function highlightVariables(body: string) {
+    return body.replace(/\{\{(\w+)\}\}/g, '<span class="bg-yellow-100 text-yellow-800 px-1 rounded font-mono text-xs">{{$1}}</span>');
+  }
+
   const doctors = users.filter(u => u.role === "doctor");
   const patients = users.filter(u => u.role === "patient");
 
@@ -405,6 +542,12 @@ export default function AdminPage() {
             className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === "study" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
           >
             Estudio
+          </button>
+          <button
+            onClick={() => setActiveTab("messages")}
+            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${activeTab === "messages" ? "bg-white text-gray-800 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+          >
+            Mensajes
           </button>
         </div>
       </div>
@@ -946,6 +1089,237 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </>
+        )}
+        {activeTab === "messages" && (
+          <>
+            {/* Messages header & feedback */}
+            {tplMsg && <div className="bg-primary-50 text-primary-700 p-3 rounded-xl text-sm">{tplMsg}</div>}
+            {tplError && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm">{tplError}</div>}
+
+            {/* Create Template */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Plantillas de Mensajes ({templates.length})</h3>
+                <button
+                  onClick={() => setShowCreateTemplate(!showCreateTemplate)}
+                  className="text-sm px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium transition"
+                >
+                  {showCreateTemplate ? "Cancelar" : "Crear plantilla"}
+                </button>
+              </div>
+
+              {showCreateTemplate && (
+                <form onSubmit={createTemplate} className="space-y-3 mb-6 p-4 border border-gray-200 rounded-xl bg-gray-50">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" value={newTplKey} onChange={e => setNewTplKey(e.target.value)}
+                      placeholder="Key (ej: reminder_checkup)" required
+                      className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                    <select value={newTplChannel} onChange={e => setNewTplChannel(e.target.value as "whatsapp" | "push")}
+                      className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 bg-white">
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="push">Push</option>
+                    </select>
+                    <input type="text" value={newTplCategory} onChange={e => setNewTplCategory(e.target.value)}
+                      placeholder="Categoría (ej: recordatorio)" required
+                      className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <textarea value={newTplBody} onChange={e => setNewTplBody(e.target.value)}
+                    placeholder="Cuerpo del mensaje. Usa {{variable}} para placeholders."
+                    required rows={3}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                  <input type="text" value={newTplVariables} onChange={e => setNewTplVariables(e.target.value)}
+                    placeholder="Variables (separadas por coma, ej: nombre, fecha)"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                  <button type="submit" disabled={tplLoading}
+                    className="bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium disabled:opacity-50 transition">
+                    {tplLoading ? "Creando..." : "Crear plantilla"}
+                  </button>
+                </form>
+              )}
+
+              {/* Template list */}
+              {templates.length === 0 ? (
+                <p className="text-sm text-gray-500">No hay plantillas creadas.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-left">
+                        <th className="py-2 pr-3 font-medium text-gray-600">Key</th>
+                        <th className="py-2 pr-3 font-medium text-gray-600">Canal</th>
+                        <th className="py-2 pr-3 font-medium text-gray-600">Versión</th>
+                        <th className="py-2 pr-3 font-medium text-gray-600">Estado</th>
+                        <th className="py-2 pr-3 font-medium text-gray-600">Aprobación</th>
+                        <th className="py-2 font-medium text-gray-600">WA</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {templates.map(t => {
+                        const compositeKey = `${t.key}::${t.channel}`;
+                        const isExpanded = expandedTemplate === compositeKey;
+                        return (
+                          <tr key={compositeKey}
+                            onClick={() => toggleTemplate(t.key, t.channel, t.template_id)}
+                            className={`border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition ${isExpanded ? "bg-gray-50" : ""}`}>
+                            <td className="py-3 pr-3">
+                              <div className="flex items-center gap-2">
+                                <svg className={`w-4 h-4 text-gray-400 transition ${isExpanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                <span className="font-mono font-medium text-gray-800">{t.key}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 pr-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.channel === "whatsapp" ? "bg-green-100 text-green-700" : "bg-indigo-100 text-indigo-700"}`}>
+                                {t.channel === "whatsapp" ? "WhatsApp" : "Push"}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-3 text-gray-600">v{t.latest_version}</td>
+                            <td className="py-3 pr-3">
+                              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${t.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                                {t.active ? "Activa" : "Inactiva"}
+                              </span>
+                            </td>
+                            <td className="py-3 pr-3">
+                              {t.approved_at
+                                ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Aprobada</span>
+                                : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Pendiente</span>}
+                            </td>
+                            <td className="py-3">
+                              {t.channel === "whatsapp" ? waStatusBadge(t.wa_status) : <span className="text-xs text-gray-400">N/A</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Expanded template detail */}
+            {expandedTemplate && templateVersions.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-gray-800">
+                    Versiones de <span className="font-mono">{templateVersions[0].key}</span>
+                    <span className="ml-2 text-sm font-normal text-gray-500">({templateVersions[0].channel === "whatsapp" ? "WhatsApp" : "Push"})</span>
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {templateVersions.map(v => (
+                    <div key={v.id} className={`border rounded-xl p-4 ${v.active ? "border-green-300 bg-green-50" : "border-gray-200"}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-800">v{v.version}</span>
+                          {v.active && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Activa</span>}
+                          {v.approved_at
+                            ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Aprobada</span>
+                            : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Sin aprobar</span>}
+                          {v.channel === "whatsapp" && waStatusBadge(v.wa_status)}
+                        </div>
+                        <span className="text-xs text-gray-400">{fmtDate(v.created_at)}</span>
+                      </div>
+
+                      {/* Body preview with highlighted variables */}
+                      <div className="bg-white border border-gray-100 rounded-lg p-3 mb-3 text-sm text-gray-700"
+                        dangerouslySetInnerHTML={{ __html: highlightVariables(v.body) }} />
+
+                      {Array.isArray(v.variables) && v.variables.length > 0 && (
+                        <div className="mb-3">
+                          <span className="text-xs text-gray-500 mr-2">Variables:</span>
+                          {v.variables.map((varName: string) => (
+                            <span key={varName} className="inline-block bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-mono mr-1">{varName}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {v.wa_rejection_reason && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-2 mb-3 text-xs text-red-700">
+                          Razón de rechazo: {v.wa_rejection_reason}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        {!v.approved_at && (
+                          <button onClick={() => handleTemplateAction(v.id, "approve")}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition">
+                            Aprobar
+                          </button>
+                        )}
+                        {!v.active && v.approved_at && (v.channel !== "whatsapp" || v.wa_status === "approved") && (
+                          <button onClick={() => handleTemplateAction(v.id, "activate")}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition">
+                            Activar
+                          </button>
+                        )}
+                        {v.active && (
+                          <button onClick={() => handleTemplateAction(v.id, "deactivate")}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+                            Desactivar
+                          </button>
+                        )}
+                        <button onClick={() => startEditVersion(v)}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-purple-200 text-purple-600 hover:bg-purple-50 transition">
+                          Nueva versión
+                        </button>
+                        {v.channel === "whatsapp" && (
+                          <>
+                            {v.wa_status !== "approved" && (
+                              <button onClick={() => handleTemplateAction(v.id, "update_wa_status", { status: "submitted" })}
+                                className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition">
+                                Marcar enviado a Meta
+                              </button>
+                            )}
+                            {v.wa_status === "submitted" && (
+                              <>
+                                <button onClick={() => handleTemplateAction(v.id, "update_wa_status", { status: "approved" })}
+                                  className="text-xs px-3 py-1.5 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition">
+                                  Marcar aprobado por Meta
+                                </button>
+                                <button onClick={() => {
+                                  const reason = prompt("Razón de rechazo:");
+                                  if (reason) handleTemplateAction(v.id, "update_wa_status", { status: "rejected", rejectionReason: reason });
+                                }}
+                                  className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
+                                  Marcar rechazado
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* New version form */}
+                      {editingVersion === v.id && (
+                        <div className="mt-4 p-4 border border-purple-200 rounded-xl bg-purple-50 space-y-3">
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                            Esto creará la versión {v.version + 1}. El cambio será reportable como desviación del protocolo.
+                          </div>
+                          <textarea value={editBody} onChange={e => setEditBody(e.target.value)}
+                            rows={3} placeholder="Cuerpo del mensaje"
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                          <input type="text" value={editVariables} onChange={e => setEditVariables(e.target.value)}
+                            placeholder="Variables (separadas por coma)"
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                          <div className="flex gap-2">
+                            <button onClick={() => handleCreateVersion(v.id)}
+                              disabled={!editBody.trim()}
+                              className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 transition">
+                              Crear versión {v.version + 1}
+                            </button>
+                            <button onClick={() => { setEditingVersion(null); setEditBody(""); setEditVariables(""); }}
+                              className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>

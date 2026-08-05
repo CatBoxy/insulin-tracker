@@ -52,6 +52,29 @@ async function alreadySentToday(participantId: number, templateId: number): Prom
   return rows.length > 0;
 }
 
+/**
+ * For inactivity messages: fire once, not daily, until the patient interacts
+ * again. Returns true if an inactivity message was already sent AFTER the
+ * patient's last interaction (meaning the patient hasn't cleared the condition).
+ */
+async function inactivityAlreadyFired(patientId: number, templateId: number): Promise<boolean> {
+  const { rows } = await pool.query(
+    `SELECT 1 FROM messages m
+     JOIN study_participants sp ON sp.id = m.participant_id
+     JOIN patients p ON p.id = sp.patient_id
+     WHERE sp.patient_id = $1
+       AND m.template_id = $2
+       AND m.status IN ('queued', 'sent', 'delivered', 'read')
+       AND (
+         p.last_interaction_at IS NULL
+         OR m.created_at > p.last_interaction_at
+       )
+     LIMIT 1`,
+    [patientId, templateId]
+  );
+  return rows.length > 0;
+}
+
 async function getCronCandidates(): Promise<number[]> {
   const { rows } = await pool.query(
     `SELECT sp.id AS participant_id, sp.patient_id
@@ -156,11 +179,22 @@ export async function runScheduler(): Promise<SchedulerResult> {
         continue;
       }
 
-      const already = await alreadySentToday(gateResult.participant.id, template.id);
-      if (already) {
-        result.suppressed++;
-        result.details.push({ rule_id: rule.id, patient_id: patientId, status: "suppressed", reason: "Already sent today" });
-        continue;
+      // Inactivity rules fire once until the condition clears (patient interacts again).
+      // Other rules use the standard "already sent today" dedup.
+      if (rule.trigger_type === "inactivity") {
+        const fired = await inactivityAlreadyFired(patientId, template.id);
+        if (fired) {
+          result.suppressed++;
+          result.details.push({ rule_id: rule.id, patient_id: patientId, status: "suppressed", reason: "Inactivity message already sent (awaiting patient interaction)" });
+          continue;
+        }
+      } else {
+        const already = await alreadySentToday(gateResult.participant.id, template.id);
+        if (already) {
+          result.suppressed++;
+          result.details.push({ rule_id: rule.id, patient_id: patientId, status: "suppressed", reason: "Already sent today" });
+          continue;
+        }
       }
 
       try {

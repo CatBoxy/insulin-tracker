@@ -129,6 +129,23 @@ export const resendVerificationSchema = z.object({
   email: z.string().email("Email válido requerido"),
 });
 
+// Template schemas
+
+export const createTemplateSchema = z.object({
+  key: z.string().min(1, "Key requerido").max(100),
+  channel: z.enum(["whatsapp", "push"], {
+    error: "Canal debe ser whatsapp o push",
+  }),
+  category: z.string().min(1, "Categoría requerida").max(100),
+  body: z.string().min(1, "Cuerpo del mensaje requerido"),
+  variables: z.array(z.string()).default([]),
+});
+
+export const newVersionSchema = z.object({
+  body: z.string().min(1, "Cuerpo del mensaje requerido"),
+  variables: z.array(z.string()).default([]),
+});
+
 // Study schemas
 
 export const studyArmEnum = z.enum(["intervention", "control"], {
