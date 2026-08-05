@@ -35,16 +35,18 @@ export async function createManual(
   analyte: string,
   value: number,
   unit: string,
-  doctorUserId: number
+  doctorUserId: number,
+  studyVisitId?: number
 ) {
   const { rows } = await pool.query(
-    `INSERT INTO lab_results (patient_id, timepoint, collected_on, analyte, value, unit, source, verified_by, verified_at)
-     VALUES ($1, $2, $3, $4, $5, $6, 'manual', $7, NOW())
+    `INSERT INTO lab_results (patient_id, timepoint, collected_on, analyte, value, unit, source, verified_by, verified_at, study_visit_id)
+     VALUES ($1, $2, $3, $4, $5, $6, 'manual', $7, NOW(), $8)
      ON CONFLICT (patient_id, timepoint, analyte, collected_on)
      DO UPDATE SET value = EXCLUDED.value, unit = EXCLUDED.unit, source = EXCLUDED.source,
-                   verified_by = EXCLUDED.verified_by, verified_at = NOW()
+                   verified_by = EXCLUDED.verified_by, verified_at = NOW(),
+                   study_visit_id = EXCLUDED.study_visit_id
      RETURNING *`,
-    [patientId, timepoint, collectedOn, analyte, value, unit, doctorUserId]
+    [patientId, timepoint, collectedOn, analyte, value, unit, doctorUserId, studyVisitId ?? null]
   );
   return rows[0];
 }

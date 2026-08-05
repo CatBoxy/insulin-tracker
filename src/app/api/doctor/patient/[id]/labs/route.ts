@@ -62,8 +62,8 @@ export async function POST(
       return NextResponse.json({ error: parsed.error.issues[0]?.message || "Datos inválidos" }, { status: 400 });
     }
 
-    const { timepoint, collectedOn, analyte, value, unit } = parsed.data;
-    const result = await labsService.createManual(patientId, timepoint, collectedOn, analyte, value, unit, user.id);
+    const { timepoint, collectedOn, analyte, value, unit, studyVisitId } = parsed.data;
+    const result = await labsService.createManual(patientId, timepoint, collectedOn, analyte, value, unit, user.id, studyVisitId);
     return NextResponse.json({ result }, { status: 201 });
   } catch (error) {
     console.error("POST /api/doctor/patient/[id]/labs error:", error);

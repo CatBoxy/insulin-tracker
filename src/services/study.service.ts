@@ -17,9 +17,20 @@ export async function generateParticipantCode(): Promise<string> {
   throw new Error("Failed to generate unique participant code after 10 attempts");
 }
 
+export async function getNextAllocation(): Promise<{ arm: "intervention" | "control"; sequence: number }> {
+  const { rows } = await pool.query(
+    "SELECT COUNT(*)::int AS total FROM study_participants"
+  );
+  const total: number = rows[0].total;
+  const sequence = total + 1;
+  // Even sequence -> intervention, odd sequence -> control
+  const arm: "intervention" | "control" = sequence % 2 === 0 ? "control" : "intervention";
+  return { arm, sequence };
+}
+
 export async function enroll(input: {
   patientId: number;
-  arm: "intervention" | "control";
+  arm?: "intervention" | "control";
   consentVersion: string;
   consentSignedAt: string;
   baselineHba1c?: number;
@@ -31,29 +42,76 @@ export async function enroll(input: {
 
     const code = await generateParticipantCode();
 
+    const isManual = !!input.arm;
+    let assignedArm: "intervention" | "control";
+    let allocationSequence: number;
+
+    if (isManual) {
+      assignedArm = input.arm!;
+      // Still compute the sequence for record-keeping
+      const { rows: countRows } = await client.query(
+        "SELECT COUNT(*)::int AS total FROM study_participants"
+      );
+      allocationSequence = countRows[0].total + 1;
+    } else {
+      const allocation = await getNextAllocation();
+      assignedArm = allocation.arm;
+      allocationSequence = allocation.sequence;
+    }
+
+    const allocationMethod = isManual ? "manual" : "alternating";
+
     const { rows } = await client.query(
       `INSERT INTO study_participants
-        (patient_id, participant_code, arm, consent_version, consent_signed_at, baseline_hba1c)
-       VALUES ($1, $2, $3, $4, $5, $6)
+        (patient_id, participant_code, arm, consent_version, consent_signed_at, baseline_hba1c,
+         allocation_method, allocation_sequence, allocated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
        RETURNING *`,
       [
         input.patientId,
         code,
-        input.arm,
+        assignedArm,
         input.consentVersion,
         input.consentSignedAt,
         input.baselineHba1c ?? null,
+        allocationMethod,
+        allocationSequence,
       ]
     );
 
     const participant = rows[0];
 
+    const auditReason = isManual
+      ? "Manual assignment at enrollment"
+      : "Initial enrollment (auto-allocated)";
+
     await client.query(
       `INSERT INTO study_arm_audit
         (participant_id, old_arm, new_arm, changed_by, reason)
        VALUES ($1, NULL, $2, $3, $4)`,
-      [participant.id, input.arm, input.enrolledBy, "Initial enrollment"]
+      [participant.id, assignedArm, input.enrolledBy, auditReason]
     );
+
+    // Auto-create 3 study visits (baseline, month_3, month_6)
+    const enrollmentDate = new Date(input.consentSignedAt);
+    const month3 = new Date(enrollmentDate);
+    month3.setMonth(month3.getMonth() + 3);
+    const month6 = new Date(enrollmentDate);
+    month6.setMonth(month6.getMonth() + 6);
+
+    const visits = [
+      { type: "baseline", date: enrollmentDate.toISOString().split("T")[0] },
+      { type: "month_3", date: month3.toISOString().split("T")[0] },
+      { type: "month_6", date: month6.toISOString().split("T")[0] },
+    ];
+
+    for (const v of visits) {
+      await client.query(
+        `INSERT INTO study_visits (participant_id, visit_type, scheduled_date)
+         VALUES ($1, $2, $3)`,
+        [participant.id, v.type, v.date]
+      );
+    }
 
     await client.query("COMMIT");
     return participant;
@@ -63,6 +121,57 @@ export async function enroll(input: {
   } finally {
     client.release();
   }
+}
+
+export async function listVisits(participantId: number) {
+  const { rows } = await pool.query(
+    `SELECT sv.*, d_user.first_name AS performed_by_first_name, d_user.last_name AS performed_by_last_name
+     FROM study_visits sv
+     LEFT JOIN doctors d ON d.id = sv.performed_by
+     LEFT JOIN users d_user ON d_user.id = d.user_id
+     WHERE sv.participant_id = $1
+     ORDER BY CASE sv.visit_type WHEN 'baseline' THEN 1 WHEN 'month_3' THEN 2 WHEN 'month_6' THEN 3 END`,
+    [participantId]
+  );
+  return rows;
+}
+
+export async function recordVisit(
+  visitId: number,
+  performedDate: string,
+  doctorId: number,
+  notes?: string
+) {
+  const { rows } = await pool.query(
+    `UPDATE study_visits SET performed_date = $1, performed_by = $2, notes = COALESCE($3, notes)
+     WHERE id = $4
+     RETURNING *`,
+    [performedDate, doctorId, notes ?? null, visitId]
+  );
+  if (rows.length === 0) throw new Error("Visit not found");
+  return rows[0];
+}
+
+export async function getOpenVisits(participantId: number) {
+  const { rows } = await pool.query(
+    `SELECT * FROM study_visits
+     WHERE participant_id = $1 AND performed_date IS NULL
+     ORDER BY CASE visit_type WHEN 'baseline' THEN 1 WHEN 'month_3' THEN 2 WHEN 'month_6' THEN 3 END`,
+    [participantId]
+  );
+  return rows;
+}
+
+export async function getVisitsByPatientId(patientId: number) {
+  const { rows } = await pool.query(
+    `SELECT sv.*
+     FROM study_visits sv
+     JOIN study_participants sp ON sp.id = sv.participant_id
+     WHERE sp.patient_id = $1
+     ORDER BY CASE sv.visit_type WHEN 'baseline' THEN 1 WHEN 'month_3' THEN 2 WHEN 'month_6' THEN 3 END`,
+    [patientId]
+  );
+  return rows;
 }
 
 export async function changeArm(

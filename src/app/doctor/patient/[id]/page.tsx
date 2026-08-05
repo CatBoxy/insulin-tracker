@@ -107,6 +107,10 @@ export default function PatientDetailPage() {
   const [indices, setIndices] = useState<Array<{ id: number; calf_circumference_cm: number | null; dynamometer_force_mmlm: number | null; chair_test_seconds: number | null; insulin_resistance_index: number | null; abdominal_circumference_cm: number | null; recorded_at: string }>>([]);
   const [indexForm, setIndexForm] = useState({ calf: "", dynamometer: "", chair: "", insulin: "", abdominal: "" });
   const [indexSaving, setIndexSaving] = useState(false);
+  const [indexStudyVisits, setIndexStudyVisits] = useState<Array<{ id: number; visit_type: string; scheduled_date: string | null; performed_date: string | null }>>([]);
+  const [indexSelectedVisitId, setIndexSelectedVisitId] = useState<string>("");
+
+  const INDEX_VISIT_LABELS: Record<string, string> = { baseline: "Basal", month_3: "Mes 3", month_6: "Mes 6" };
 
   // Patient body data (read-only for doctor)
   const [patientHeight, setPatientHeight] = useState<number | null>(null);
@@ -137,14 +141,15 @@ export default function PatientDetailPage() {
       setPrescriptions(data.prescriptions || []);
       setAppointments(data.appointments || []);
 
-      // Load checkup types, medical history, indices, and body data
-      const [ctRes, mhRes, idxRes, heightRes, weightRes, compRes] = await Promise.all([
+      // Load checkup types, medical history, indices, body data, and study visits
+      const [ctRes, mhRes, idxRes, heightRes, weightRes, compRes, svRes] = await Promise.all([
         fetch("/api/checkup-types", { credentials: "include" }).catch(() => null),
         fetch(`/api/doctor/patient/${patientId}/medical-history`, { credentials: "include" }).catch(() => null),
         fetch(`/api/doctor/patient/${patientId}/indices`, { credentials: "include" }).catch(() => null),
         fetch(`/api/doctor/patient/${patientId}/height`, { credentials: "include" }).catch(() => null),
         fetch(`/api/doctor/patient/${patientId}/weights`, { credentials: "include" }).catch(() => null),
         fetch(`/api/doctor/patient/${patientId}/body-composition`, { credentials: "include" }).catch(() => null),
+        fetch(`/api/doctor/patient/${patientId}/study-visits`, { credentials: "include" }).catch(() => null),
       ]);
       if (ctRes?.ok) {
         const ctData = await ctRes.json();
@@ -157,6 +162,10 @@ export default function PatientDetailPage() {
       if (idxRes?.ok) {
         const idxData = await idxRes.json();
         setIndices(idxData.entries || []);
+      }
+      if (svRes?.ok) {
+        const svData = await svRes.json();
+        setIndexStudyVisits(svData.visits || []);
       }
       if (heightRes?.ok) {
         const h = await heightRes.json();
@@ -706,23 +715,44 @@ export default function PatientDetailPage() {
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
               </div>
+              {indexStudyVisits.length > 0 && (
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-500 mb-1">Asociar a visita del estudio</label>
+                  <select value={indexSelectedVisitId} onChange={e => setIndexSelectedVisitId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Sin asociar</option>
+                    {indexStudyVisits.map(v => (
+                      <option key={v.id} value={v.id}>
+                        {INDEX_VISIT_LABELS[v.visit_type] || v.visit_type}
+                        {v.scheduled_date ? ` (${new Date(v.scheduled_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })})` : ""}
+                        {v.performed_date ? " - Realizada" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <button onClick={async () => {
                 if (!indexForm.calf && !indexForm.dynamometer && !indexForm.chair && !indexForm.insulin && !indexForm.abdominal) return;
                 setIndexSaving(true);
                 try {
+                  const payload: Record<string, unknown> = {
+                    calf_circumference_cm: indexForm.calf ? Number(indexForm.calf) : null,
+                    dynamometer_force_mmlm: indexForm.dynamometer ? Number(indexForm.dynamometer) : null,
+                    chair_test_seconds: indexForm.chair ? Number(indexForm.chair) : null,
+                    insulin_resistance_index: indexForm.insulin ? Number(indexForm.insulin) : null,
+                    abdominal_circumference_cm: indexForm.abdominal ? Number(indexForm.abdominal) : null,
+                  };
+                  if (indexSelectedVisitId) {
+                    payload.study_visit_id = Number(indexSelectedVisitId);
+                  }
                   const res = await fetch(`/api/doctor/patient/${patientId}/indices`, {
                     method: "POST", credentials: "include",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      calf_circumference_cm: indexForm.calf ? Number(indexForm.calf) : null,
-                      dynamometer_force_mmlm: indexForm.dynamometer ? Number(indexForm.dynamometer) : null,
-                      chair_test_seconds: indexForm.chair ? Number(indexForm.chair) : null,
-                      insulin_resistance_index: indexForm.insulin ? Number(indexForm.insulin) : null,
-                      abdominal_circumference_cm: indexForm.abdominal ? Number(indexForm.abdominal) : null,
-                    }),
+                    body: JSON.stringify(payload),
                   });
                   if (res.ok) {
                     setIndexForm({ calf: "", dynamometer: "", chair: "", insulin: "", abdominal: "" });
+                    setIndexSelectedVisitId("");
                     const r = await fetch(`/api/doctor/patient/${patientId}/indices`, { credentials: "include" });
                     if (r.ok) { const d = await r.json(); setIndices(d.entries || []); }
                   }
@@ -1747,6 +1777,14 @@ function LabResultsPanel({ patientId }: { patientId: string }) {
   const [manualUnit, setManualUnit] = useState("%");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [studyVisits, setStudyVisits] = useState<Array<{ id: number; visit_type: string; scheduled_date: string | null; performed_date: string | null }>>([]);
+  const [selectedVisitId, setSelectedVisitId] = useState<string>("");
+
+  const VISIT_TYPE_LABELS: Record<string, string> = {
+    baseline: "Basal",
+    month_3: "Mes 3",
+    month_6: "Mes 6",
+  };
 
   const UNIT_DEFAULTS: Record<string, string> = {
     hba1c: "%", glucose_fasting: "mg/dL", total_cholesterol: "mg/dL",
@@ -1756,10 +1794,17 @@ function LabResultsPanel({ patientId }: { patientId: string }) {
 
   const loadResults = useCallback(async () => {
     try {
-      const res = await fetch(`/api/doctor/patient/${patientId}/labs`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
+      const [labRes, visitRes] = await Promise.all([
+        fetch(`/api/doctor/patient/${patientId}/labs`, { credentials: "include" }),
+        fetch(`/api/doctor/patient/${patientId}/study-visits`, { credentials: "include" }).catch(() => null),
+      ]);
+      if (labRes.ok) {
+        const data = await labRes.json();
         setResults(data.results || []);
+      }
+      if (visitRes?.ok) {
+        const vData = await visitRes.json();
+        setStudyVisits(vData.visits || []);
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -1770,20 +1815,25 @@ function LabResultsPanel({ patientId }: { patientId: string }) {
   async function handleManualSave() {
     setSaving(true); setMsg("");
     try {
+      const payload: Record<string, unknown> = {
+        timepoint: manualTimepoint,
+        collectedOn: manualDate,
+        analyte: manualAnalyte,
+        value: Number(manualValue),
+        unit: manualUnit,
+      };
+      if (selectedVisitId) {
+        payload.studyVisitId = Number(selectedVisitId);
+      }
       const res = await fetch(`/api/doctor/patient/${patientId}/labs`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          timepoint: manualTimepoint,
-          collectedOn: manualDate,
-          analyte: manualAnalyte,
-          value: Number(manualValue),
-          unit: manualUnit,
-        }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setMsg("Resultado guardado");
         setManualValue("");
+        setSelectedVisitId("");
         setShowManualForm(false);
         loadResults();
       } else {
@@ -1858,6 +1908,22 @@ function LabResultsPanel({ patientId }: { patientId: string }) {
               </div>
             </div>
           </div>
+          {studyVisits.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Asociar a visita del estudio</label>
+              <select value={selectedVisitId} onChange={e => setSelectedVisitId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="">Sin asociar</option>
+                {studyVisits.map(v => (
+                  <option key={v.id} value={v.id}>
+                    {VISIT_TYPE_LABELS[v.visit_type] || v.visit_type}
+                    {v.scheduled_date ? ` (${new Date(v.scheduled_date + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/San_Juan" })})` : ""}
+                    {v.performed_date ? " - Realizada" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <button onClick={handleManualSave} disabled={saving || !manualValue || !manualDate}
             className="w-full bg-primary-500 hover:bg-primary-600 text-white py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 transition">
             {saving ? "Guardando..." : "Guardar resultado"}

@@ -52,11 +52,11 @@ export default function AdminPage() {
 
   // Enrollment form
   const [enrollPatientId, setEnrollPatientId] = useState("");
-  const [enrollArm, setEnrollArm] = useState<"intervention" | "control">("intervention");
+  const [enrollArm, setEnrollArm] = useState<"intervention" | "control" | "">("");
   const [enrollConsentVersion, setEnrollConsentVersion] = useState("");
   const [enrollConsentDate, setEnrollConsentDate] = useState("");
   const [enrollHba1c, setEnrollHba1c] = useState("");
-  const [enrollResult, setEnrollResult] = useState<{ participant_code: string } | null>(null);
+  const [enrollResult, setEnrollResult] = useState<{ participant_code: string; arm: string; allocation_method: string } | null>(null);
   const [enrollError, setEnrollError] = useState("");
   const [enrollLoading, setEnrollLoading] = useState(false);
 
@@ -274,7 +274,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           patientId: Number(enrollPatientId),
-          arm: enrollArm,
+          ...(enrollArm ? { arm: enrollArm } : {}),
           consentVersion: enrollConsentVersion,
           consentSignedAt: enrollConsentDate,
           ...(enrollHba1c ? { baselineHba1c: parseFloat(enrollHba1c) } : {}),
@@ -282,8 +282,12 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setEnrollResult({ participant_code: data.participant.participant_code });
-        setEnrollPatientId(""); setEnrollConsentVersion(""); setEnrollConsentDate(""); setEnrollHba1c("");
+        setEnrollResult({
+          participant_code: data.participant.participant_code,
+          arm: data.participant.arm,
+          allocation_method: data.participant.allocation_method,
+        });
+        setEnrollPatientId(""); setEnrollArm(""); setEnrollConsentVersion(""); setEnrollConsentDate(""); setEnrollHba1c("");
         loadParticipants();
       } else {
         setEnrollError(data.error || "Error");
@@ -846,6 +850,8 @@ export default function AdminPage() {
               {enrollResult && (
                 <div className="bg-green-50 text-green-700 p-3 rounded-xl text-sm mb-3">
                   Participante inscrito. Código: <span className="font-mono font-bold">{enrollResult.participant_code}</span>
+                  {" | "}Brazo: <span className="font-medium">{enrollResult.arm === "intervention" ? "Intervención" : "Control"}</span>
+                  {" | "}Método: <span className="font-medium">{enrollResult.allocation_method === "alternating" ? "Automático (alternado)" : "Manual"}</span>
                 </div>
               )}
               {enrollablePatients.length === 0 ? (
@@ -862,11 +868,15 @@ export default function AdminPage() {
                         </option>
                       ))}
                     </select>
-                    <select value={enrollArm} onChange={e => setEnrollArm(e.target.value as "intervention" | "control")}
-                      className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 bg-white">
-                      <option value="intervention">Intervención</option>
-                      <option value="control">Control</option>
-                    </select>
+                    <div>
+                      <select value={enrollArm} onChange={e => setEnrollArm(e.target.value as "intervention" | "control" | "")}
+                        className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 bg-white w-full">
+                        <option value="">Automático (alternado)</option>
+                        <option value="intervention">Intervención</option>
+                        <option value="control">Control</option>
+                      </select>
+                      <p className="text-xs text-gray-400 mt-1">Dejar vacío para asignación automática (alternada)</p>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" value={enrollConsentVersion} onChange={e => setEnrollConsentVersion(e.target.value)}

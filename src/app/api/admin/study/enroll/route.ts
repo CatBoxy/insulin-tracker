@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const participant = await studyService.enroll({
       patientId,
-      arm,
+      ...(arm ? { arm } : {}),
       consentVersion,
       consentSignedAt,
       baselineHba1c,

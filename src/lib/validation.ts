@@ -154,7 +154,7 @@ export const studyArmEnum = z.enum(["intervention", "control"], {
 
 export const enrollParticipantSchema = z.object({
   patientId: z.number({ message: "patient_id requerido" }).int().positive(),
-  arm: studyArmEnum,
+  arm: studyArmEnum.optional(),
   consentVersion: z.string().min(1, "Versión de consentimiento requerida"),
   consentSignedAt: z.string().min(1, "Fecha de firma requerida"),
   baselineHba1c: z.number().min(0).max(20).optional(),
@@ -193,6 +193,7 @@ export const manualLabResultSchema = z.object({
   ),
   value: z.number({ message: "Valor numérico requerido" }).positive("El valor debe ser positivo"),
   unit: z.string().min(1, "Unidad requerida").max(30),
+  studyVisitId: z.number().int().positive().optional(),
 });
 
 export const verifyLabResultsSchema = z.object({

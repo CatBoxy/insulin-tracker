@@ -46,7 +46,7 @@ export async function POST(
   const doctorId = doctorRows[0].id;
 
   const body = await request.json();
-  const { calf_circumference_cm, dynamometer_force_mmlm, chair_test_seconds, insulin_resistance_index, abdominal_circumference_cm } = body;
+  const { calf_circumference_cm, dynamometer_force_mmlm, chair_test_seconds, insulin_resistance_index, abdominal_circumference_cm, study_visit_id } = body;
 
   // At least one value required
   if (!calf_circumference_cm && !dynamometer_force_mmlm && !chair_test_seconds && !insulin_resistance_index && !abdominal_circumference_cm) {
@@ -54,10 +54,10 @@ export async function POST(
   }
 
   const { rows } = await pool.query(
-    `INSERT INTO doctor_indices (patient_id, doctor_id, calf_circumference_cm, dynamometer_force_mmlm, chair_test_seconds, insulin_resistance_index, abdominal_circumference_cm)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, calf_circumference_cm, dynamometer_force_mmlm, chair_test_seconds, insulin_resistance_index, abdominal_circumference_cm, recorded_at`,
-    [patientId, doctorId, calf_circumference_cm || null, dynamometer_force_mmlm || null, chair_test_seconds || null, insulin_resistance_index || null, abdominal_circumference_cm || null]
+    `INSERT INTO doctor_indices (patient_id, doctor_id, calf_circumference_cm, dynamometer_force_mmlm, chair_test_seconds, insulin_resistance_index, abdominal_circumference_cm, study_visit_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, calf_circumference_cm, dynamometer_force_mmlm, chair_test_seconds, insulin_resistance_index, abdominal_circumference_cm, study_visit_id, recorded_at`,
+    [patientId, doctorId, calf_circumference_cm || null, dynamometer_force_mmlm || null, chair_test_seconds || null, insulin_resistance_index || null, abdominal_circumference_cm || null, study_visit_id || null]
   );
 
   return NextResponse.json({ entry: rows[0] }, { status: 201 });
