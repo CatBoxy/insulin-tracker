@@ -47,8 +47,23 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const updated = await appointmentsService.update(appointmentId, parsed.data);
-    if (!updated) return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
+    // If attendance_status is being set, use dedicated recorder so metadata is captured
+    if (parsed.data.attendance_status) {
+      await appointmentsService.recordAttendance(
+        appointmentId,
+        parsed.data.attendance_status as import("@/services/appointments.service").AttendanceStatus,
+        user.id,
+      );
+      // Remove from generic update to avoid double-write
+      const rest = { ...parsed.data };
+      delete rest.attendance_status;
+      if (Object.values(rest).some(v => v !== undefined)) {
+        await appointmentsService.update(appointmentId, rest);
+      }
+    } else {
+      const updated = await appointmentsService.update(appointmentId, parsed.data);
+      if (!updated) return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
+    }
 
     // Auto-complete linked checkup when appointment is marked completed
     if (parsed.data.status === "completed") {

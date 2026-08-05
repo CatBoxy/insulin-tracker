@@ -86,6 +86,7 @@ const UPDATABLE_FIELDS = new Map([
   ["status", "status"],
   ["reason", "reason"],
   ["notes", "notes"],
+  ["attendance_status", "attendance_status"],
 ] as const);
 
 export async function update(id: number, fields: Record<string, unknown>) {
@@ -158,5 +159,50 @@ export async function listCheckupTypes() {
   const { rows } = await pool.query(
     "SELECT id, code, display_name_es FROM checkup_types ORDER BY sort_order"
   );
+  return rows;
+}
+
+const VALID_ATTENDANCE = ["scheduled", "attended", "no_show", "cancelled_by_patient", "cancelled_by_clinic", "rescheduled"] as const;
+export type AttendanceStatus = (typeof VALID_ATTENDANCE)[number];
+
+export async function recordAttendance(
+  appointmentId: number,
+  status: AttendanceStatus,
+  userId: number,
+) {
+  if (!VALID_ATTENDANCE.includes(status)) {
+    throw new Error(`Invalid attendance status: ${status}`);
+  }
+  const { rowCount } = await pool.query(
+    `UPDATE appointments
+        SET attendance_status      = $1,
+            attendance_recorded_at = NOW(),
+            attendance_recorded_by = $2,
+            updated_at             = NOW()
+      WHERE id = $3`,
+    [status, userId, appointmentId],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
+ * Appointments older than 48 h whose attendance_status is still 'scheduled'.
+ * Used by admin dashboard to surface unrecorded attendance.
+ */
+export async function getUnrecordedPastAppointments() {
+  const { rows } = await pool.query(`
+    SELECT a.id, a.scheduled_at, a.patient_id, a.doctor_id,
+           u_p.first_name AS patient_first_name, u_p.last_name AS patient_last_name,
+           u_d.first_name AS doctor_first_name, u_d.last_name AS doctor_last_name
+    FROM appointments a
+    JOIN patients p  ON p.id  = a.patient_id
+    JOIN users   u_p ON u_p.id = p.user_id
+    JOIN doctors d   ON d.id  = a.doctor_id
+    JOIN users   u_d ON u_d.id = d.user_id
+    WHERE a.attendance_status = 'scheduled'
+      AND a.status != 'cancelled'
+      AND a.scheduled_at < NOW() - INTERVAL '48 hours'
+    ORDER BY a.scheduled_at ASC
+  `);
   return rows;
 }

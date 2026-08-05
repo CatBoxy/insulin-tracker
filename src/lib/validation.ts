@@ -87,6 +87,7 @@ export const updateAppointmentSchema = z.object({
   status: z.enum(["pending", "confirmed", "cancelled", "completed"]).optional(),
   reason: z.string().max(1000).optional(),
   notes: z.string().max(2000).optional(),
+  attendance_status: z.enum(["scheduled", "attended", "no_show", "cancelled_by_patient", "cancelled_by_clinic", "rescheduled"]).optional(),
 }).refine(
   data => Object.values(data).some(v => v !== undefined),
   { message: "Al menos un campo requerido" }

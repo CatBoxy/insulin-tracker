@@ -25,14 +25,25 @@ export interface PersonalizationContext {
   appointmentDate?: string;
 }
 
+export interface PersonalizationProvenance {
+  modelId: string | null;
+  promptInputs: Record<string, unknown>;
+  rawModelOutput: string | null;
+  guardrailsModified: boolean;
+  guardrailsRejected: boolean;
+  fallbackUsed: boolean;
+}
+
 export interface PersonalizationResult {
   body: string;
   personalized: boolean;
   variablesUsed: Record<string, string>;
+  provenance: PersonalizationProvenance;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────
 
+const GEMINI_MODEL_ID = "gemini-3.5-flash";
 const MIN_LENGTH = 50;
 const MAX_LENGTH = 500;
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -188,9 +199,35 @@ export async function personalizeMessage(
     context
   );
 
+  // Build prompt inputs for provenance regardless of path taken
+  const promptInputs: Record<string, unknown> = {
+    templateBody,
+    variables,
+    patientName: context.patientName,
+    participantCode: context.participantCode,
+    ...(context.recentGlucose !== undefined && { recentGlucose: context.recentGlucose }),
+    ...(context.recentBP && { recentBP: context.recentBP }),
+    ...(context.medicationNames?.length && { medicationNames: context.medicationNames }),
+    ...(context.daysInactive !== undefined && { daysInactive: context.daysInactive }),
+    ...(context.checkupName && { checkupName: context.checkupName }),
+    ...(context.appointmentDate && { appointmentDate: context.appointmentDate }),
+  };
+
   // Step 2 — if every placeholder is resolved, no AI needed
   if (allFilled) {
-    return { body: substituted, personalized: false, variablesUsed };
+    return {
+      body: substituted,
+      personalized: false,
+      variablesUsed,
+      provenance: {
+        modelId: null,
+        promptInputs,
+        rawModelOutput: null,
+        guardrailsModified: false,
+        guardrailsRejected: false,
+        fallbackUsed: false,
+      },
+    };
   }
 
   // Step 3 — call Gemini for tone adaptation
@@ -204,16 +241,52 @@ export async function personalizeMessage(
       console.warn(
         `[personalize] Validation failed, falling back to simple substitution: ${validationError}`
       );
-      return { body: substituted, personalized: false, variablesUsed };
+      return {
+        body: substituted,
+        personalized: false,
+        variablesUsed,
+        provenance: {
+          modelId: GEMINI_MODEL_ID,
+          promptInputs,
+          rawModelOutput: aiBody,
+          guardrailsModified: false,
+          guardrailsRejected: true,
+          fallbackUsed: true,
+        },
+      };
     }
 
-    return { body: aiBody, personalized: true, variablesUsed };
+    return {
+      body: aiBody,
+      personalized: true,
+      variablesUsed,
+      provenance: {
+        modelId: GEMINI_MODEL_ID,
+        promptInputs,
+        rawModelOutput: aiBody,
+        guardrailsModified: false,
+        guardrailsRejected: false,
+        fallbackUsed: false,
+      },
+    };
   } catch (err) {
     console.error(
       "[personalize] Gemini call failed, falling back to simple substitution:",
       err
     );
-    return { body: substituted, personalized: false, variablesUsed };
+    return {
+      body: substituted,
+      personalized: false,
+      variablesUsed,
+      provenance: {
+        modelId: GEMINI_MODEL_ID,
+        promptInputs,
+        rawModelOutput: null,
+        guardrailsModified: false,
+        guardrailsRejected: false,
+        fallbackUsed: true,
+      },
+    };
   }
 }
 
@@ -262,7 +335,7 @@ async function callGemini(
   ctx: PersonalizationContext
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-  const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_ID });
 
   const prompt = buildPrompt(templateBody, ctx);
 

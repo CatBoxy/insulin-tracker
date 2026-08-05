@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth-middleware";
 import pool from "@/lib/db";
+import * as appointmentsService from "@/services/appointments.service";
 
 export async function GET() {
   try {
@@ -60,6 +61,9 @@ export async function GET() {
       ORDER BY month
     `);
 
+    // Appointments older than 48h with no recorded attendance
+    const unrecordedAttendance = await appointmentsService.getUnrecordedPastAppointments();
+
     return NextResponse.json({
       total: counts.total,
       interventionActive: counts.intervention_active,
@@ -67,6 +71,8 @@ export async function GET() {
       withdrawn: counts.withdrawn,
       inactive,
       enrollmentProgress,
+      unrecordedAttendance,
+      unrecordedAttendanceCount: unrecordedAttendance.length,
     });
   } catch (error) {
     console.error("GET /api/admin/study/dashboard error:", error);

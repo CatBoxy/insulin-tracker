@@ -77,6 +77,8 @@ interface Appointment {
   reason: string | null;
   notes: string | null;
   created_at: string;
+  attendance_status?: string;
+  attendance_recorded_at?: string | null;
 }
 
 export default function PatientDetailPage() {
@@ -591,6 +593,34 @@ export default function PatientDetailPage() {
               <div className="space-y-3">
                 {appointments.map(a => {
                   const isPast = new Date(a.scheduled_at) < new Date();
+                  const attendanceLabels: Record<string, string> = {
+                    scheduled: "Sin registrar",
+                    attended: "Asistio",
+                    no_show: "No asistio",
+                    cancelled_by_patient: "Cancelo paciente",
+                    cancelled_by_clinic: "Cancelo clinica",
+                    rescheduled: "Reprogramado",
+                  };
+                  const attendanceBadgeColors: Record<string, string> = {
+                    scheduled: "bg-gray-100 text-gray-500",
+                    attended: "bg-green-100 text-green-700",
+                    no_show: "bg-red-100 text-red-700",
+                    cancelled_by_patient: "bg-orange-100 text-orange-700",
+                    cancelled_by_clinic: "bg-orange-100 text-orange-700",
+                    rescheduled: "bg-yellow-100 text-yellow-700",
+                  };
+                  const attStatus = a.attendance_status || "scheduled";
+                  const showAttendanceButtons = isPast && a.status !== "cancelled" && attStatus === "scheduled";
+
+                  const recordAttendance = async (status: string) => {
+                    await fetch(`/api/appointments/${a.id}`, {
+                      method: "PATCH", credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ attendance_status: status }),
+                    });
+                    load();
+                  };
+
                   return (
                     <div key={a.id} className={`p-4 rounded-xl border ${a.status === "cancelled" ? "border-gray-200 opacity-50" : isPast ? "border-gray-200" : "border-primary-200 bg-primary-50/30"}`}>
                       <div className="flex items-center justify-between">
@@ -610,6 +640,11 @@ export default function PatientDetailPage() {
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "confirmed" ? "bg-green-100 text-green-700" : a.status === "pending" ? "bg-yellow-100 text-yellow-700" : a.status === "completed" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
                             {a.status === "confirmed" ? "Confirmada" : a.status === "pending" ? "Pendiente" : a.status === "completed" ? "Completada" : "Cancelada"}
                           </span>
+                          {isPast && a.status !== "cancelled" && (
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${attendanceBadgeColors[attStatus] || "bg-gray-100 text-gray-500"}`}>
+                              {attendanceLabels[attStatus] || attStatus}
+                            </span>
+                          )}
                           {a.status !== "cancelled" && a.status !== "completed" && (
                             <button onClick={async () => {
                               if (a.status === "pending" || a.status === "confirmed") {
@@ -626,6 +661,31 @@ export default function PatientDetailPage() {
                           )}
                         </div>
                       </div>
+                      {showAttendanceButtons && (
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                          <span className="text-xs text-gray-500 self-center mr-1">Asistencia:</span>
+                          <button onClick={() => recordAttendance("attended")}
+                            className="text-xs px-3 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition">
+                            Asistio
+                          </button>
+                          <button onClick={() => recordAttendance("no_show")}
+                            className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition">
+                            No asistio
+                          </button>
+                          <button onClick={() => recordAttendance("cancelled_by_patient")}
+                            className="text-xs px-3 py-1 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition">
+                            Cancelo paciente
+                          </button>
+                          <button onClick={() => recordAttendance("cancelled_by_clinic")}
+                            className="text-xs px-3 py-1 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition">
+                            Cancelo clinica
+                          </button>
+                          <button onClick={() => recordAttendance("rescheduled")}
+                            className="text-xs px-3 py-1 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 transition">
+                            Reprogramado
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

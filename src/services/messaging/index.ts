@@ -11,7 +11,9 @@ export { sendMessage } from "./sender";
 export { recordEvent, updateMessageStatus } from "./events";
 export { registerToken, deactivateToken, getActiveTokens } from "./push-token";
 export { personalizeMessage } from "./personalize";
-export type { PersonalizationContext, PersonalizationResult } from "./personalize";
+export type { PersonalizationContext, PersonalizationResult, PersonalizationProvenance } from "./personalize";
+export { logProvenance } from "./provenance";
+export type { ProvenanceParams } from "./provenance";
 
 // Self-register channel adapters
 import "./push";
