@@ -1037,6 +1037,46 @@ Consolidated, ranked by how much rework each causes if answered late.
 
 ---
 
+## §8.5 Remaining tasks tracker
+
+*Updated each commit. Check marks indicate completion.*
+
+### Launch blockers
+
+| Task | What | Effort | Needs Alfredo? | Status |
+|------|------|--------|----------------|--------|
+| P2-10 | Escalation policy — what happens on dangerous readings | Mechanism: 1 day. Policy: his call. | **Yes — clinical rules** | Blocked |
+| P0.5-2 | Processor inventory — document every service touching patient data | 1 hour | **Yes — confirm receipt for ethics** | Not started |
+| P1.5-2 | Caregiver role — record companion/carer at enrollment | 1 day | **Yes — login scope** | Blocked |
+| Dress rehearsal | 5 fake participants, scheduler 1 week | Half day + 1 week | No | Not started |
+
+### Should do before enrollment
+
+| Task | What | Effort | Needs Alfredo? | Status |
+|------|------|--------|----------------|--------|
+| P3-6 | Accessibility pass — large text, contrast, 44px targets | 1-2 days | No | Not started |
+| P3-7 | Onboarding flow — guided first-run logging one reading | 1 day | No | Not started |
+| P3-2 | Play Store listing — store page, privacy policy, data safety | Half day + review | No | Not started |
+
+### Nice to have
+
+| Task | What | Effort | Needs Alfredo? | Status |
+|------|------|--------|----------------|--------|
+| P2-3 | WhatsApp adapter — reminders via WhatsApp | 2 days + Meta | No | Deferred |
+| P0-8 | Sentry — error monitoring | Half day | No | Deferred |
+| P3-8 | Parity gaps — body comp/indices on mobile, Rx creation | 1 day | No | Not started |
+
+### Phase 4 (before analysis, ~November)
+
+| Task | What | Effort | Needs Alfredo? | Status |
+|------|------|--------|----------------|--------|
+| P4-1 | Analysis export — de-identified CSV per participant per visit | 1-2 days | **Yes — analyte scope** | Not started |
+| P4-2 | Engagement export — per-participant per-week metrics | 1 day | No | Not started |
+| P4-3 | Patient PDF summary — readable health report download | 1 day | No | Not started |
+| P4-4 | Shareable report — read-only URL for third parties | 1 day | No | Not started |
+
+---
+
 ## §9 Changelog
 
 | Version | Date | Change |
