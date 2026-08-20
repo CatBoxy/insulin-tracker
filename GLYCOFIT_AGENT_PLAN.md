@@ -1046,7 +1046,7 @@ Consolidated, ranked by how much rework each causes if answered late.
 | Task | What | Effort | Needs Alfredo? | Status |
 |------|------|--------|----------------|--------|
 | P2-10 | Escalation policy — what happens on dangerous readings | Mechanism: 1 day. Policy: his call. | **Yes — clinical rules** | Blocked |
-| P0.5-2 | Processor inventory — document every service touching patient data | 1 hour | **Yes — confirm receipt for ethics** | Not started |
+| P0.5-2 | Processor inventory — document every service touching patient data | 1 hour | **Yes — confirm receipt for ethics** | ✅ Done |
 | P1.5-2 | Caregiver role — record companion/carer at enrollment | 1 day | **Yes — login scope** | Blocked |
 | Dress rehearsal | 5 fake participants, scheduler 1 week | Half day + 1 week | No | Not started |
 
@@ -1054,8 +1054,8 @@ Consolidated, ranked by how much rework each causes if answered late.
 
 | Task | What | Effort | Needs Alfredo? | Status |
 |------|------|--------|----------------|--------|
-| P3-6 | Accessibility pass — large text, contrast, 44px targets | 1-2 days | No | Not started |
-| P3-7 | Onboarding flow — guided first-run logging one reading | 1 day | No | Not started |
+| P3-6 | Accessibility pass — large text, contrast, 44px targets | 1-2 days | No | ✅ Done |
+| P3-7 | Onboarding flow — guided first-run logging one reading | 1 day | No | ✅ Done |
 | P3-2 | Play Store listing — store page, privacy policy, data safety | Half day + review | No | Not started |
 
 ### Nice to have
@@ -1097,3 +1097,4 @@ Consolidated, ranked by how much rework each causes if answered late.
 | 2.3 | 2026-08-04 | Completed P1.5-1 (study visit labelling). New `study_visits` table with baseline/month_3/month_6 per participant (UNIQUE constraint). `study_visit_id` FK added to lab_results, doctor_indices, body_composition, measurements. enroll() auto-creates 3 visits with scheduled dates (enrollment, +3mo, +6mo). Service: listVisits, recordVisit, getOpenVisits, getVisitsByPatientId. Admin API: GET/PATCH at /api/admin/study/participants/[id]/visits. Doctor API: GET /api/doctor/patient/[id]/study-visits. Doctor UI: "Asociar a visita del estudio" dropdown on lab results manual form and indices form — shows all visits with type, date, and performed status. |
 | 2.4 | 2026-08-04 | Completed P1.5-7 (personalization provenance log). New `message_generations` table tracks model, template key+version, prompt inputs, raw model output, guardrail actions (modified/rejected), fallback status, and final body for every AI-generated message. `personalizeMessage()` now returns `PersonalizationProvenance` on every code path (no-AI, AI success, guardrail rejection, Gemini error). New `logProvenance()` service exported from messaging index for scheduler to call after send. Enables tracing any sent message to its exact generation inputs and measuring AI success vs fallback rate. |
 | 2.5 | 2026-08-04 | Completed P1.5-5 (appointment attendance tracking). Migration adds attendance_status (scheduled/attended/no_show/cancelled_by_patient/cancelled_by_clinic/rescheduled), attendance_recorded_at, attendance_recorded_by to appointments. Service: recordAttendance() with metadata, getUnrecordedPastAppointments() for 48h alert. Validation schema extended. PATCH API handles attendance_status via dedicated recorder. Doctor UI: attendance badge on past appointments + one-tap buttons (Asistio/No asistio/Cancelo paciente/Cancelo clinica/Reprogramado). Admin study dashboard: unrecordedAttendance list + count surfaced for appointments >48h still at 'scheduled'. |
+| 2.6 | 2026-08-20 | Completed P1.5-3 (questionnaires — 4 tables, service, admin CRUD, patient web page + mobile tab), P1.5-4 (data rights — patient export endpoint, admin erasure, "Descargar mis datos" on web + mobile), P1.5-6 (mobile permissions audit — removed RECORD_AUDIO, disabled camera mic, documented in PERMISOS_APP.md), P0.5-2 (processor inventory — docs/PROCESAMIENTO_DE_DATOS.md for ethics), P3-6 (accessibility — WCAG AA contrast, 44px targets, 16px primary text, tab bars 56px), P3-7 (onboarding — 3-step guided practice with real glucose logging). APK built and tested on Android. |
