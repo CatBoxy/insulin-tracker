@@ -197,6 +197,31 @@ export const manualLabResultSchema = z.object({
   studyVisitId: z.number().int().positive().optional(),
 });
 
+// Questionnaire schemas
+
+export const createQuestionnaireSchema = z.object({
+  code: z.string().min(1, "Código requerido").max(100),
+  title: z.string().min(1, "Título requerido").max(500),
+  description: z.string().max(2000).optional(),
+  items: z.array(z.object({
+    item_order: z.number().int().positive(),
+    prompt: z.string().min(1, "Pregunta requerida"),
+    response_type: z.enum(["single_choice", "likert_5", "numeric", "free_text"], {
+      message: "Tipo debe ser single_choice, likert_5, numeric o free_text",
+    }),
+    options: z.array(z.string()).optional(),
+    required: z.boolean().optional(),
+  })).min(1, "Al menos una pregunta requerida"),
+});
+
+export const submitQuestionnaireSchema = z.object({
+  answers: z.array(z.object({
+    itemId: z.number().int().positive(),
+    value: z.string().min(1, "Respuesta requerida"),
+  })).min(1, "Al menos una respuesta requerida"),
+  studyVisitId: z.number().int().positive().optional(),
+});
+
 export const verifyLabResultsSchema = z.object({
   labResultIds: z.array(
     z.number().int().positive()

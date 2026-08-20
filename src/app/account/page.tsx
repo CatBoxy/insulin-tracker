@@ -51,6 +51,10 @@ export default function AccountPage() {
   const [pwFieldErrors, setPwFieldErrors] = useState<Record<string, string>>({});
   const [pwLoading, setPwLoading] = useState(false);
 
+  // Data export
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
+
   const loadAccount = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/account", { credentials: "include" });
@@ -155,6 +159,31 @@ export default function AccountPage() {
       }
     } catch { setPwError("Error de conexión"); }
     finally { setPwLoading(false); }
+  }
+
+  async function handleExportData() {
+    setExportLoading(true);
+    setExportMsg("");
+    try {
+      const res = await fetch("/api/patient/export", { credentials: "include" });
+      if (!res.ok) {
+        const d = await res.json();
+        setExportMsg(d.error || "Error al exportar datos");
+        return;
+      }
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mis-datos-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportMsg("Datos descargados");
+    } catch { setExportMsg("Error de conexión"); }
+    finally { setExportLoading(false); }
   }
 
   const handleLogout = () => logout(router);
@@ -263,6 +292,26 @@ export default function AccountPage() {
             </button>
           </form>
         </div>
+
+        {/* Mis datos — Data Rights (Ley 25.326) */}
+        {account.role === "patient" && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 className="font-semibold text-gray-800 mb-4">Mis Datos</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Puede pedir acceso, corrección o eliminación de sus datos identificables.
+              Podés pedir la corrección de tus datos clínicos a tu médico.
+            </p>
+            {exportMsg && (
+              <div className={`p-3 rounded-xl text-sm mb-3 ${exportMsg.includes("Error") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                {exportMsg}
+              </div>
+            )}
+            <button onClick={handleExportData} disabled={exportLoading}
+              className="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
+              {exportLoading ? "Descargando..." : "Descargar mis datos"}
+            </button>
+          </div>
+        )}
 
         {/* PWA Install */}
         <PwaInstallPrompt />
