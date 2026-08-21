@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public paths
-  if (pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/verify-email") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password") || pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/auth/verify-email") || pathname.startsWith("/api/auth/resend-verification") || pathname.startsWith("/api/auth/forgot-password") || pathname.startsWith("/api/auth/reset-password") || pathname.startsWith("/api/doctors/by-code") || pathname.startsWith("/api/health") || pathname.startsWith("/_next") || pathname.startsWith("/sw.js") || pathname.startsWith("/manifest") || pathname.startsWith("/favicon") || pathname.startsWith("/icon")) {
+  if (pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/verify-email") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password") || pathname.startsWith("/api/auth/login") || pathname.startsWith("/api/auth/register") || pathname.startsWith("/api/auth/verify-email") || pathname.startsWith("/api/auth/resend-verification") || pathname.startsWith("/api/auth/forgot-password") || pathname.startsWith("/api/auth/reset-password") || pathname.startsWith("/api/doctors/by-code") || pathname.startsWith("/api/health") || pathname.startsWith("/api/internal/") || pathname.startsWith("/_next") || pathname.startsWith("/sw.js") || pathname.startsWith("/manifest") || pathname.startsWith("/favicon") || pathname.startsWith("/icon")) {
     return NextResponse.next();
   }
 

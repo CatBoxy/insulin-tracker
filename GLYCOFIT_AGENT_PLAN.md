@@ -1056,7 +1056,7 @@ Consolidated, ranked by how much rework each causes if answered late.
 |------|------|--------|----------------|--------|
 | P3-6 | Accessibility pass — large text, contrast, 44px targets | 1-2 days | No | ✅ Done |
 | P3-7 | Onboarding flow — guided first-run logging one reading | 1 day | No | ✅ Done |
-| P3-2 | Play Store listing — store page, privacy policy, data safety | Half day + review | No | Not started |
+| P3-2 | Play Store listing — store page, privacy policy, data safety | Half day + review days | No | Deferred — APK for now |
 
 ### Nice to have
 

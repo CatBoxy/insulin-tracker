@@ -1,6 +1,8 @@
 import pool from "@/lib/db";
 import { checkArmGate } from "@/services/messaging.service";
 import { sendMessage } from "./sender";
+import { personalizeMessage } from "./personalize";
+import { logProvenance } from "./provenance";
 import { matches } from "./cron-parser";
 
 interface ScheduleRule {
@@ -198,17 +200,41 @@ export async function runScheduler(): Promise<SchedulerResult> {
       }
 
       try {
+        // Personalize the message
+        const participant = gateResult.participant;
+        const personalization = await personalizeMessage(
+          template.body,
+          Array.isArray(template.variables) ? template.variables : [],
+          { patientName: participant.participant_code, participantCode: participant.participant_code }
+        );
+
         const sendResult = await sendMessage({
           patientId,
           templateId: template.id,
           channel: template.channel,
-          renderedBody: template.body,
-          variablesUsed: {},
-          personalized: false,
+          renderedBody: personalization.body,
+          variablesUsed: personalization.variablesUsed,
+          personalized: personalization.personalized,
           scheduledFor: now,
           triggerRuleId: rule.id,
           triggerContext: { trigger_type: rule.trigger_type },
         });
+
+        // Log provenance for every sent message
+        if (sendResult.messageId && personalization.provenance) {
+          await logProvenance({
+            messageId: sendResult.messageId,
+            modelId: personalization.provenance.modelId,
+            templateKey: rule.template_key,
+            templateVersion: template.version || 1,
+            promptInputs: personalization.provenance.promptInputs,
+            rawModelOutput: personalization.provenance.rawModelOutput,
+            guardrailsModified: personalization.provenance.guardrailsModified,
+            guardrailsRejected: personalization.provenance.guardrailsRejected,
+            fallbackUsed: personalization.provenance.fallbackUsed,
+            finalBody: personalization.body,
+          }).catch(err => console.error("Provenance log failed:", err));
+        }
 
         if (sendResult.status === "suppressed") {
           result.suppressed++;

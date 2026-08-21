@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth-middleware";
+import { resolvePatientId } from "@/lib/patient-resolve";
 import { deviceTokenSchema } from "@/lib/validation";
 import * as deviceTokensService from "@/services/device-tokens.service";
+import { registerToken } from "@/services/messaging/push-token";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,6 +16,13 @@ export async function POST(request: NextRequest) {
     }
 
     await deviceTokensService.register(user.id, parsed.data.token, parsed.data.platform);
+
+    // Also register in patient_channels for the messaging engine
+    const patientId = await resolvePatientId(user.id);
+    if (patientId) {
+      await registerToken(patientId, parsed.data.token, parsed.data.platform);
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof Response) return err;
