@@ -84,7 +84,7 @@ export async function getPatientDetail(patientId: number, doctorId: number, meas
 
   const [measurements, measCount, alerts, prescriptions, appointments] = await Promise.all([
     pool.query(
-      `SELECT id, type, value, unit, context, notes, recorded_at
+      `SELECT id, type, value, unit, context, notes, systolic, diastolic, recorded_at
        FROM measurements WHERE patient_id = $1
        ORDER BY recorded_at DESC LIMIT $2 OFFSET $3`,
       [patientId, measLimit, measOffset]

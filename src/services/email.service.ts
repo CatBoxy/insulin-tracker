@@ -6,6 +6,10 @@ function getResend() {
   return _resend;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 interface SendEmailOptions {
   to: string;
   subject: string;
@@ -40,8 +44,8 @@ export function alertEmailHtml(patientName: string, alertType: string, message: 
       <h2 style="color: #16a34a; margin-bottom: 4px;">Glycofit</h2>
       <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Tu salud, bajo control</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
-      <p style="color: #1f2937;">Hola <strong>${patientName}</strong>,</p>
-      <p style="color: #1f2937;">${message}</p>
+      <p style="color: #1f2937;">Hola <strong>${escapeHtml(patientName)}</strong>,</p>
+      <p style="color: #1f2937;">${escapeHtml(message)}</p>
       <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
         — Equipo Glycofit
       </p>
@@ -55,7 +59,7 @@ export function passwordResetEmailHtml(name: string, resetUrl: string) {
       <h2 style="color: #16a34a; margin-bottom: 4px;">Glycofit</h2>
       <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Tu salud, bajo control</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
-      <p style="color: #1f2937;">Hola <strong>${name}</strong>,</p>
+      <p style="color: #1f2937;">Hola <strong>${escapeHtml(name)}</strong>,</p>
       <p style="color: #1f2937;">Recibimos una solicitud para restablecer tu contraseña.</p>
       <a href="${resetUrl}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
         Restablecer contraseña
@@ -74,7 +78,7 @@ export function verificationEmailHtml(name: string, verifyUrl: string) {
       <h2 style="color: #16a34a; margin-bottom: 4px;">Glycofit</h2>
       <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Tu salud, bajo control</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
-      <p style="color: #1f2937;">Hola <strong>${name}</strong>,</p>
+      <p style="color: #1f2937;">Hola <strong>${escapeHtml(name)}</strong>,</p>
       <p style="color: #1f2937;">Confirmá tu correo electrónico para completar tu registro.</p>
       <a href="${verifyUrl}" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
         Confirmar email
@@ -88,15 +92,16 @@ export function verificationEmailHtml(name: string, verifyUrl: string) {
 }
 
 export function welcomeEmailHtml(name: string) {
+  const appUrl = process.env.APP_URL || "https://glyco.fit";
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
       <h2 style="color: #16a34a; margin-bottom: 4px;">Glycofit</h2>
       <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Tu salud, bajo control</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
-      <p style="color: #1f2937;">Hola <strong>${name}</strong>,</p>
+      <p style="color: #1f2937;">Hola <strong>${escapeHtml(name)}</strong>,</p>
       <p style="color: #1f2937;">¡Bienvenido/a a Glycofit! Tu cuenta fue creada exitosamente.</p>
       <p style="color: #1f2937;">Desde ahora podés registrar tus mediciones de glucemia y presión arterial, y llevar un control de tu salud.</p>
-      <a href="https://glyco.fit/login" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+      <a href="${appUrl}/login" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
         Ingresar a Glycofit
       </a>
       <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">

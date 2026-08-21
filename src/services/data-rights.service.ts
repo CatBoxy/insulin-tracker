@@ -36,7 +36,7 @@ export async function exportPatientData(patientId: number) {
 
   // Appointments
   const { rows: appointments } = await pool.query(
-    "SELECT id, title, description, appointment_date, status, created_at FROM appointments WHERE patient_id = $1 ORDER BY appointment_date DESC",
+    "SELECT id, scheduled_at, type, status, reason, notes, attendance_status, created_at FROM appointments WHERE patient_id = $1 ORDER BY scheduled_at DESC",
     [patientId]
   );
 
@@ -57,23 +57,24 @@ export async function exportPatientData(patientId: number) {
 
   // Checkups + completions
   const { rows: checkupCompletions } = await pool.query(
-    `SELECT cc.id, cc.checkup_id, c.title AS checkup_title, cc.completed_at, cc.notes
+    `SELECT cc.id, cc.patient_checkup_id, ct.name AS checkup_name, cc.completed_at, cc.notes
      FROM checkup_completions cc
-     JOIN checkups c ON c.id = cc.checkup_id
-     WHERE cc.patient_id = $1
+     JOIN patient_checkups pc ON pc.id = cc.patient_checkup_id
+     JOIN checkup_types ct ON ct.id = pc.checkup_type_id
+     WHERE pc.patient_id = $1
      ORDER BY cc.completed_at DESC`,
     [patientId]
   );
 
   // Medical history — family
   const { rows: familyHistory } = await pool.query(
-    "SELECT id, condition, has_condition FROM family_history WHERE patient_id = $1",
+    "SELECT id, condition, has_condition, notes FROM patient_family_history WHERE patient_id = $1",
     [patientId]
   );
 
   // Medical history — personal
   const { rows: personalHistory } = await pool.query(
-    "SELECT id, condition, has_condition, detail FROM personal_history WHERE patient_id = $1",
+    "SELECT id, condition, has_condition, notes FROM patient_personal_history WHERE patient_id = $1",
     [patientId]
   );
 
@@ -85,7 +86,7 @@ export async function exportPatientData(patientId: number) {
 
   // Lab results
   const { rows: labResults } = await pool.query(
-    "SELECT id, test_name, value, unit, reference_range, result_date, notes FROM lab_results WHERE patient_id = $1 ORDER BY result_date DESC",
+    "SELECT id, timepoint, analyte, value, unit, source, collected_on, verified_by, verified_at FROM lab_results WHERE patient_id = $1 ORDER BY collected_on DESC",
     [patientId]
   );
 
@@ -97,8 +98,8 @@ export async function exportPatientData(patientId: number) {
 
   // App sessions
   const { rows: appSessions } = await pool.query(
-    "SELECT id, started_at, ended_at, platform FROM app_sessions WHERE user_id = $1 ORDER BY started_at DESC",
-    [userId]
+    "SELECT id, channel, started_at FROM app_sessions WHERE patient_id = $1 ORDER BY started_at DESC",
+    [patientId]
   );
 
   // Study participation
