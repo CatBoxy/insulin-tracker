@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PasswordInput from "@/components/PasswordInput";
+import DateInput from "@/components/DateInput";
 import { updateAccountSchema, changePasswordSchema } from "@/lib/validation";
 import { logout } from "@/lib/logout";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
@@ -242,8 +243,8 @@ export default function AccountPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
-              <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)}
-                className={inputClass(infoFieldErrors, "date_of_birth")} />
+              <DateInput value={dateOfBirth} onChange={setDateOfBirth}
+                className={inputClass(infoFieldErrors, "date_of_birth") + " cursor-pointer"} maxDate={new Date()} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>

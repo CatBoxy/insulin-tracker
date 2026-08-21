@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import CheckupStatusBadge from "./CheckupStatusBadge";
+import DateInput from "@/components/DateInput";
 
 interface CheckupItem {
   id: number;
@@ -431,12 +432,10 @@ export default function CheckupCard({
             <h5 className="text-sm font-semibold text-gray-700">Registrar control</h5>
             <div>
               <label className="block text-xs text-gray-500 mb-1">¿Cuándo lo hiciste?</label>
-              <input
-                type="date"
+              <DateInput
                 value={completedAt}
-                onChange={e => setCompletedAt(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
-                className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]"
+                onChange={setCompletedAt}
+                maxDate={new Date()}
               />
             </div>
             <div>

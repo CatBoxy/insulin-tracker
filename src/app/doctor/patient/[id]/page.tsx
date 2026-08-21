@@ -4,6 +4,7 @@ import { useRouter, useParams } from "next/navigation";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { getGlucemiaStatus, getSystolicStatus, type VitalStatus } from "@/lib/thresholds";
 import CheckupStatusBadge from "@/components/checkups/CheckupStatusBadge";
+import DateInput from "@/components/DateInput";
 
 const CONDITION_LABELS: Record<string, string> = {
   cancer: "Cáncer",
@@ -378,13 +379,11 @@ export default function PatientDetailPage() {
               <div className="flex flex-wrap gap-3 mb-4">
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-500">Desde:</label>
-                  <input type="date" value={measDateFrom} onChange={e => { setMeasDateFrom(e.target.value); setMeasPage(0); }}
-                    className="px-2 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary-500" />
+                  <DateInput value={measDateFrom} onChange={v => { setMeasDateFrom(v); setMeasPage(0); }} compact />
                 </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-gray-500">Hasta:</label>
-                  <input type="date" value={measDateTo} onChange={e => { setMeasDateTo(e.target.value); setMeasPage(0); }}
-                    className="px-2 py-1 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary-500" />
+                  <DateInput value={measDateTo} onChange={v => { setMeasDateTo(v); setMeasPage(0); }} compact />
                 </div>
                 {(measDateFrom || measDateTo) && (
                   <button onClick={() => { setMeasDateFrom(""); setMeasDateTo(""); setMeasPage(0); }}
@@ -522,8 +521,7 @@ export default function PatientDetailPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Fecha</label>
-                    <input type="date" value={apptDate} onChange={e => setApptDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                    <DateInput value={apptDate} onChange={setApptDate} minDate={new Date()} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Hora</label>
@@ -1337,9 +1335,7 @@ function DoctorCheckupPanel({ patientId, onReload }: { patientId: string; onRelo
               {completeId === item.id && (
                 <div className="mt-3 bg-gray-50 rounded-xl p-3 space-y-2">
                   <label className="block text-xs text-gray-500">¿Cuándo lo hizo?</label>
-                  <input type="date" value={completeDate} onChange={e => setCompleteDate(e.target.value)}
-                    max={new Date().toISOString().split("T")[0]}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]" />
+                  <DateInput value={completeDate} onChange={setCompleteDate} maxDate={new Date()} />
                   <label className="block text-xs text-gray-500">Notas (opcional)</label>
                   <textarea value={completeNotes} onChange={e => setCompleteNotes(e.target.value)} rows={2}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
@@ -1717,13 +1713,7 @@ function VerifyParsedResultsButton({ attachmentId, tests, patientId, onVerified 
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">Fecha de recolección</label>
-          <input
-            type="date"
-            value={verifyDate}
-            onChange={e => setVerifyDate(e.target.value)}
-            max={new Date().toISOString().split("T")[0]}
-            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-emerald-500"
-          />
+          <DateInput value={verifyDate} onChange={setVerifyDate} maxDate={new Date()} compact />
         </div>
       </div>
 
@@ -1945,9 +1935,7 @@ function LabResultsPanel({ patientId }: { patientId: string }) {
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Fecha de recolección</label>
-              <input type="date" value={manualDate} onChange={e => setManualDate(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+              <DateInput value={manualDate} onChange={setManualDate} maxDate={new Date()} />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Analito</label>

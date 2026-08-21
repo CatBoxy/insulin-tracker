@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import PasswordInput from "@/components/PasswordInput";
+import DateInput from "@/components/DateInput";
 import { registerSchema } from "@/lib/validation";
 
 export default function DoctorRegisterPage() {
@@ -118,8 +119,8 @@ export default function DoctorRegisterPage() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
-            <input type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)}
-              className={inputClass("date_of_birth")} />
+            <DateInput value={dateOfBirth} onChange={setDateOfBirth}
+              className={inputClass("date_of_birth") + " cursor-pointer"} maxDate={new Date()} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Género</label>

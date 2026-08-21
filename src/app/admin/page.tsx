@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/logout";
 import HamburgerMenu from "@/components/HamburgerMenu";
+import DateInput from "@/components/DateInput";
 
 interface User { id: number; email: string; role: string; created_at: string }
 interface Assignment { id: number; doctor_email: string; patient_email: string; status: string; assigned_at: string; doctor_user_id: number; patient_id: number }
@@ -882,9 +883,9 @@ export default function AdminPage() {
                     <input type="text" value={enrollConsentVersion} onChange={e => setEnrollConsentVersion(e.target.value)}
                       placeholder="Versión de consentimiento" required
                       className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
-                    <input type="date" value={enrollConsentDate} onChange={e => setEnrollConsentDate(e.target.value)}
-                      required title="Fecha de firma del consentimiento"
-                      className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                    <DateInput value={enrollConsentDate} onChange={setEnrollConsentDate}
+                      required
+                      className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 bg-white cursor-pointer" />
                     <input type="number" value={enrollHba1c} onChange={e => setEnrollHba1c(e.target.value)}
                       placeholder="HbA1c basal (opcional)" step="0.1" min="0" max="20"
                       className="px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />

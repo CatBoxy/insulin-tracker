@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import DateInput from "@/components/DateInput";
 
 interface CheckupItem {
   id: number;
@@ -160,12 +161,10 @@ export default function OnboardingPage() {
                 </label>
                 {entry.choice === "date" && (
                   <div className="ml-8">
-                    <input
-                      type="date"
+                    <DateInput
                       value={entry.date}
-                      onChange={e => updateEntry(index, { date: e.target.value })}
-                      max={new Date().toISOString().split("T")[0]}
-                      className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 min-h-[44px]"
+                      onChange={v => updateEntry(index, { date: v })}
+                      maxDate={new Date()}
                     />
                   </div>
                 )}

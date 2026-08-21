@@ -1,6 +1,7 @@
 "use client";
 import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import PasswordInput from "@/components/PasswordInput";
 
 function ResetPasswordInner() {
   const params = useSearchParams();
@@ -84,24 +85,27 @@ function ResetPasswordInner() {
 
         <form onSubmit={handleSubmit}>
           <label className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            placeholder="Mínimo 8 caracteres"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 mb-4"
-          />
+          <div className="mb-4">
+            <PasswordInput
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="Mínimo 8 caracteres"
+              minLength={8}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 pr-12"
+            />
+          </div>
 
           <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            placeholder="Repetí tu contraseña"
-            className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 mb-4"
-          />
+          <div className="mb-4">
+            <PasswordInput
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              placeholder="Repetí tu contraseña"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary-500 pr-12"
+            />
+          </div>
 
           {error && (
             <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm mb-4 text-center">
