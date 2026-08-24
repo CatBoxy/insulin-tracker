@@ -1050,7 +1050,7 @@ Consolidated, ranked by how much rework each causes if answered late.
 
 | Task | What | Effort | Needs Alfredo? | Status |
 |------|------|--------|----------------|--------|
-| P2-10 | Escalation alerts — dangerous reading → push notif + alert → "ir a guardia de urgencias" | Half day | No — answered 2026-08-22 | Not started |
+| P2-10 | Escalation alerts — dangerous reading → push notif + alert → "ir a guardia de urgencias" | Half day | No — answered 2026-08-22 | ✅ Done |
 | P0.5-2 | Processor inventory — document every service touching patient data | 1 hour | **Yes — confirm receipt for ethics** | ✅ Done |
 | P1.5-2 | Caregiver role — record companion/carer at enrollment | 1 day | **Yes — login scope** | Blocked |
 | P2-4a | Firebase/FCM setup — `google-services.json` + upload FCM key to Expo + new APK build | 1 hour + Firebase console | No | ✅ Done |
@@ -1060,7 +1060,7 @@ Consolidated, ranked by how much rework each causes if answered late.
 
 | Task | What | Effort | Needs Alfredo? | Status |
 |------|------|--------|----------------|--------|
-| P2-11 | Glucemia reminder push notifs — 3 daily (ayunas/post-almuerzo/pre-cena), skip if logged | Half day | No — answered 2026-08-22 | Not started |
+| P2-11 | Glucemia reminder push notifs — 3 daily (ayunas/post-almuerzo/pre-cena), skip if logged | Half day | No — answered 2026-08-22 | ✅ Done |
 | P3-9 | Consent step in onboarding — data processors, checkbox, timestamp in DB | 2-3 hours | No — answered 2026-08-22 | Not started |
 | P3-6 | Accessibility pass — large text, contrast, 44px targets | 1-2 days | No | ✅ Done |
 | P3-7 | Onboarding flow — guided first-run logging one reading | 1 day | No | ✅ Done |
@@ -1108,3 +1108,4 @@ Consolidated, ranked by how much rework each causes if answered late.
 | 2.6 | 2026-08-20 | Completed P1.5-3 (questionnaires — 4 tables, service, admin CRUD, patient web page + mobile tab), P1.5-4 (data rights — patient export endpoint, admin erasure, "Descargar mis datos" on web + mobile), P1.5-6 (mobile permissions audit — removed RECORD_AUDIO, disabled camera mic, documented in PERMISOS_APP.md), P0.5-2 (processor inventory — docs/PROCESAMIENTO_DE_DATOS.md for ethics), P3-6 (accessibility — WCAG AA contrast, 44px targets, 16px primary text, tab bars 56px), P3-7 (onboarding — 3-step guided practice with real glucose logging). APK built and tested on Android. |
 | 2.7 | 2026-08-21 | Fixed CRITICAL mobile routing bug (patient saw admin page after app restart — root cause: no default route + incomplete useProtectedRoute logic). Added app/index.tsx as role-based redirector and third condition in useProtectedRoute. Added PasswordInput eye icon to web reset-password form. Replaced all date text inputs with native pickers — mobile: @react-native-community/datetimepicker (4 fields), web: react-datepicker (12 fields), both DD/MM/YYYY. Set up APK version detection (UpdateBanner + /api/app-version). Bumped mobile to v1.1.0. |
 | 2.8 | 2026-08-22 | Completed P2-4a (Firebase/FCM setup). Created Firebase project glycofit-47ad4, added google-services.json to mobile project, uploaded FCM V1 service account key to Expo. Expanded onboarding to 4 steps (name → glucose practice → notifications → features) with OTA update splash screen in root layout. Fixed notification handler error handling (try/catch + loading state) and glucose step skip link. Push notifications tested end-to-end: Expo Push API → FCM → physical Android device. APK v1.2.0 (versionCode 3). |
+| 2.9 | 2026-08-22 | Completed P2-11 (glucemia reminder push notifs — 3 daily cron rules: fasting 7:00, postprandial 14:30, pre-dinner 19:30 Argentina time, skip if already logged, intervention arm only). Added measurement_context param to scheduler for per-context dedup. Scheduler now resolves patient first_name for {{nombre}}. Completed P2-10 (escalation alerts — emergency readings trigger immediate push notification + in-app alert with ER instruction). Emergency thresholds: glucose <54 or ≥200/300, BP >180/120. Full-screen red EmergencyModal with vibration on mobile. Recorded Alfredo's decisions: escalation policy, consent in onboarding, message schedule. |
