@@ -77,6 +77,23 @@ async function inactivityAlreadyFired(patientId: number, templateId: number): Pr
   return rows.length > 0;
 }
 
+async function measurementAlreadyLoggedToday(patientId: number, context: string): Promise<boolean> {
+  const today = toArgentinaDate(new Date());
+  const startOfDay = new Date(today);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(today);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const { rows } = await pool.query(
+    `SELECT 1 FROM measurements
+     WHERE patient_id = $1 AND type = 'glucemia' AND context = $2
+       AND recorded_at BETWEEN $3 AND $4
+     LIMIT 1`,
+    [patientId, context, startOfDay.toISOString(), endOfDay.toISOString()]
+  );
+  return rows.length > 0;
+}
+
 async function getCronCandidates(): Promise<number[]> {
   const { rows } = await pool.query(
     `SELECT sp.id AS participant_id, sp.patient_id
@@ -199,13 +216,28 @@ export async function runScheduler(): Promise<SchedulerResult> {
         }
       }
 
+      const measContext = (rule.params as { measurement_context?: string })?.measurement_context;
+      if (measContext) {
+        const logged = await measurementAlreadyLoggedToday(patientId, measContext);
+        if (logged) {
+          result.suppressed++;
+          result.details.push({ rule_id: rule.id, patient_id: patientId, status: "suppressed", reason: `Measurement ${measContext} already logged today` });
+          continue;
+        }
+      }
+
       try {
-        // Personalize the message
         const participant = gateResult.participant;
+        const { rows: nameRows } = await pool.query<{ first_name: string | null }>(
+          `SELECT u.first_name FROM patients p JOIN users u ON u.id = p.user_id WHERE p.id = $1`,
+          [patientId]
+        );
+        const patientName = nameRows[0]?.first_name || participant.participant_code;
+
         const personalization = await personalizeMessage(
           template.body,
           Array.isArray(template.variables) ? template.variables : [],
-          { patientName: participant.participant_code, participantCode: participant.participant_code }
+          { patientName, participantCode: participant.participant_code }
         );
 
         const sendResult = await sendMessage({
