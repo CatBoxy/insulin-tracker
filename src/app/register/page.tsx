@@ -28,6 +28,7 @@ function RegisterContent() {
   const [verificationPending, setVerificationPending] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
@@ -57,12 +58,18 @@ function RegisterContent() {
       return;
     }
 
+    if (!inviteCode.trim()) {
+      setFieldErrors({ invite_code: "Código de invitación requerido" });
+      return;
+    }
+
     const payload = {
       email, password, first_name: firstName, last_name: lastName,
       phone: phone || undefined,
       date_of_birth: dateOfBirth || undefined,
       gender: gender || undefined,
       doctorCode: doctorCode || undefined,
+      invite_code: inviteCode.trim(),
     };
 
     const parsed = registerSchema.safeParse(payload);
@@ -163,6 +170,13 @@ function RegisterContent() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código de invitación *</label>
+            <input type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())}
+              className={inputClass("invite_code") + " text-center tracking-widest font-mono text-lg"} placeholder="ABC123" maxLength={8} autoComplete="off" />
+            {fieldErrors.invite_code && <p className="text-red-500 text-xs mt-1">{fieldErrors.invite_code}</p>}
+            <p className="text-xs text-gray-400 mt-1">Proporcionado por tu equipo médico</p>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>

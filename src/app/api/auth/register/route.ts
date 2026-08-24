@@ -5,6 +5,7 @@ import { getDoctorByCode, linkPatientToDoctor } from "@/services/doctor-link.ser
 import { resolvePatientId } from "@/lib/patient-resolve";
 import { sendEmail, verificationEmailHtml } from "@/services/email.service";
 import { createVerificationToken } from "@/services/verification.service";
+import pool from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +16,23 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password, first_name, last_name, date_of_birth, gender, phone, doctorCode, role } = parsed.data;
+    const inviteCode = body.invite_code?.trim()?.toUpperCase();
+
+    if (!inviteCode) {
+      return NextResponse.json({ error: "Código de invitación requerido" }, { status: 400 });
+    }
+
+    const { rows: codeRows } = await pool.query(
+      "SELECT id, used_at FROM invite_codes WHERE code = $1",
+      [inviteCode]
+    );
+    if (codeRows.length === 0) {
+      return NextResponse.json({ error: "Código de invitación inválido" }, { status: 400 });
+    }
+    if (codeRows[0].used_at) {
+      return NextResponse.json({ error: "Este código de invitación ya fue utilizado" }, { status: 400 });
+    }
+    const inviteCodeId = codeRows[0].id;
 
     if (await authService.emailExists(email)) {
       return NextResponse.json({ error: "El email ya está registrado" }, { status: 409 });
@@ -25,6 +43,12 @@ export async function POST(request: NextRequest) {
       date_of_birth, gender, phone,
       role: role || "patient",
     });
+
+    await pool.query(
+      "UPDATE invite_codes SET used_by = $1, used_at = NOW() WHERE id = $2",
+      [user.id, inviteCodeId]
+    );
+
     // Auto-link to doctor if code provided (only for patients)
     let linkedDoctor: string | null = null;
     if (doctorCode && user.role === "patient") {

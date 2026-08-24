@@ -40,6 +40,14 @@ export default function AdminPage() {
   const [assignMsg, setAssignMsg] = useState("");
   const [assignError, setAssignError] = useState("");
 
+  // ---- Invite codes state ----
+  const [inviteCodes, setInviteCodes] = useState<{ id: number; code: string; notes: string | null; used_at: string | null; created_at: string; created_by_email: string; used_by_email: string | null }[]>([]);
+  const [inviteNotes, setInviteNotes] = useState("");
+  const [inviteMsg, setInviteMsg] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
   // ---- Study tab state ----
   const [studyPatients, setStudyPatients] = useState<StudyPatient[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -183,7 +191,14 @@ export default function AdminPage() {
     } catch {}
   }, []);
 
-  useEffect(() => { loadUsers(); loadAssignments(); }, [loadUsers, loadAssignments]);
+  const loadInviteCodes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/invite-codes", {credentials:"include"});
+      if (res.ok) { const data = await res.json(); setInviteCodes(data.codes || []); }
+    } catch {}
+  }, []);
+
+  useEffect(() => { loadUsers(); loadAssignments(); loadInviteCodes(); }, [loadUsers, loadAssignments, loadInviteCodes]);
 
   useEffect(() => {
     if (activeTab === "study") {
@@ -241,6 +256,39 @@ export default function AdminPage() {
       });
       loadAssignments();
     } catch {}
+  }
+
+  // ---- Invite codes actions ----
+  async function generateInviteCode(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteLoading(true); setInviteMsg(""); setInviteError("");
+    try {
+      const res = await fetch("/api/admin/invite-codes", {credentials:"include",
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes: inviteNotes || undefined }),
+      });
+      const data = await res.json();
+      if (res.ok) { setInviteMsg(`Código generado: ${data.code.code}`); setInviteNotes(""); loadInviteCodes(); }
+      else setInviteError(data.error || "Error");
+    } catch { setInviteError("Error de conexión"); }
+    finally { setInviteLoading(false); }
+  }
+
+  async function revokeInviteCode(id: number) {
+    try {
+      const res = await fetch("/api/admin/invite-codes", {credentials:"include",
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) loadInviteCodes();
+      else { const data = await res.json(); setInviteError(data.error || "Error"); }
+    } catch { setInviteError("Error de conexión"); }
+  }
+
+  function copyCode(code: string) {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode(null), 2000);
   }
 
   // ---- Study tab actions ----
@@ -671,6 +719,49 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+
+            {/* Invite Codes */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">Códigos de Invitación</h3>
+              <p className="text-sm text-gray-500 mb-4">Generá un código para que un paciente pueda registrarse en la app.</p>
+              {inviteMsg && <div className="bg-primary-50 text-primary-700 p-3 rounded-xl text-sm mb-3">{inviteMsg}</div>}
+              {inviteError && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm mb-3">{inviteError}</div>}
+              <form onSubmit={generateInviteCode} className="flex gap-3 mb-4">
+                <input type="text" value={inviteNotes} onChange={e => setInviteNotes(e.target.value)} placeholder="Nota (opcional, ej: nombre del paciente)"
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500" />
+                <button type="submit" disabled={inviteLoading}
+                  className="bg-primary-500 hover:bg-primary-600 text-white px-5 py-2.5 rounded-xl font-medium disabled:opacity-50 transition whitespace-nowrap">
+                  {inviteLoading ? "Generando..." : "Generar código"}
+                </button>
+              </form>
+
+              {inviteCodes.length > 0 && (
+                <div className="space-y-2">
+                  {inviteCodes.map(ic => (
+                    <div key={ic.id} className={`flex items-center justify-between py-3 px-4 rounded-xl border ${ic.used_at ? "bg-gray-50 border-gray-100" : "bg-primary-50 border-primary-100"}`}>
+                      <div className="flex items-center gap-3">
+                        <code className={`text-lg font-bold tracking-wider ${ic.used_at ? "text-gray-400" : "text-primary-700"}`}>{ic.code}</code>
+                        {ic.notes && <span className="text-sm text-gray-500">{ic.notes}</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {ic.used_at ? (
+                          <span className="text-xs text-gray-500">Usado por {ic.used_by_email} — {fmtDate(ic.used_at)}</span>
+                        ) : (
+                          <>
+                            <button onClick={() => copyCode(ic.code)}
+                              className="text-xs text-primary-600 hover:text-primary-800 px-2 py-1 rounded transition">
+                              {copiedCode === ic.code ? "Copiado!" : "Copiar"}
+                            </button>
+                            <button onClick={() => revokeInviteCode(ic.id)}
+                              className="text-red-400 hover:text-red-600 text-xs px-2 py-1">&times; Revocar</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </>
         )}
 
