@@ -59,6 +59,7 @@ export function getDiastolicStatus(value: number): VitalStatus {
 }
 
 export function getBloodPressureStatus(systolic: number, diastolic: number): VitalStatus {
+  if (systolic > 180 || diastolic > 120) return "emergency";
   const s = getSystolicStatus(systolic);
   const d = getDiastolicStatus(diastolic);
   if (s === "critical" || d === "critical") return "critical";
