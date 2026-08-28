@@ -1083,6 +1083,23 @@ Consolidated, ranked by how much rework each causes if answered late.
 | P4-3 | Patient PDF summary — readable health report download | 1 day | No | Not started |
 | P4-4 | Shareable report — read-only URL for third parties | 1 day | No | Not started |
 
+### Alfredo feedback (2026-08-28 meeting) — to discuss
+
+| # | Item | Notes |
+|---|------|-------|
+| AF-1 | Push notifs con preguntas de tracking sobre hábitos | New feature: interactive push notifications that ask habit-tracking questions (e.g. "¿Tomaste tu medicación hoy?"). Needs design of question types, storage, and how answers feed into the study. |
+| AF-2 | Registro privado (private journal) | Patient-facing private notes/journal section — not shared with doctor unless patient chooses to. |
+| AF-3 | Sección de consultas + push/email on reply | Patient asks a question in-app, doctor answers, patient gets push notification + email when answered. Needs a messaging/Q&A module. |
+| AF-4 | Alertas del médico: fecha, hora y filtros | Doctor alert list needs timestamp display and filtering (by patient, severity, date range). |
+| AF-5 | Soft delete | Records should be soft-deleted (mark as deleted) instead of hard-deleted across the system. |
+| AF-6 | Control arm: let doctor upload data | In the control arm, the doctor should be able to upload/enter measurement data on behalf of the patient (patients in control don't use the app actively). |
+| AF-7 | Sacar la turnera por ahora | Remove the appointment booking feature for now — not needed at launch. |
+| AF-8 | Font sizes clip / not readable | Text is clipping or not fully visible in some places. Needs a UI pass to fix truncation and readability. |
+| AF-9 | Mejorar experiencia de gráficos | Charts UX needs improvement — unclear what specifically, discuss with Alfredo. |
+| AF-10 | Testear todos los formularios | Full QA pass on every form in web + mobile — validate inputs, error states, edge cases. |
+| AF-11 | Verificar onboarding no repite si ya completado | Confirm that a user who already completed onboarding doesn't get sent through it again (SecureStore check). |
+| AF-12 | Verificar "Descargar mis datos" funciona | Test the data export/download feature end-to-end on both web and mobile. |
+
 ---
 
 ## §9 Changelog
