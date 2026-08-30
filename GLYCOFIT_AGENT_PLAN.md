@@ -1031,14 +1031,14 @@ This is the cheapest insurance in the plan. Do not skip it.
 Consolidated, ranked by how much rework each causes if answered late.
 
 1. **Escalation policy** *(Alfredo)* — ✅ **ANSWERED 2026-08-22.** Dangerous reading → push notification + in-app alert telling patient to go to nearest emergency room ("guardia de urgencias más cercana"). **Implementation needed.**
-2. **Analysis plan** *(Alfredo)* — the stats section lists only paired pre/post tests, which measure change *within* each arm and cannot answer whether the intervention arm changed more. Needs a between-group comparison (ANCOVA on the outcome with baseline as covariate is the stronger choice). Six months of collection against the wrong test is unrecoverable.
-3. **Sample size** *(Alfredo + director)* — no calculation anywhere. The committee will ask, and it determines what the export and the message scheduler are built against.
-4. **Consent amendment for processors** — ✅ **ANSWERED 2026-08-22.** Consent section in mobile onboarding required. **Implementation needed.**
+2. **Analysis plan** — ✅ **RESOLVED 2026-08-30.** App only collects data. Alfredo downloads data and handles analysis himself. No in-app comparison or processing needed.
+3. **Sample size** — ✅ **RESOLVED 2026-08-30.** Study runs with whatever participants enroll. Ethics committee is handled outside the app by Alfredo.
+4. **Consent amendment for processors** — ✅ **ANSWERED 2026-08-22.** Consent section in mobile onboarding required. ✅ **Done.**
 5. **Message schedule detail** *(Alfredo)* — ✅ **ANSWERED 2026-08-22.** 3 daily glucemia reminders: en ayunas (morning), 2h post almuerzo (afternoon), antes de cenar (evening) — only if not yet logged that day. **Implementation needed.**
-6. **Allocation rule** *(Alfredo)* — alternating, or seeded blocks? Needed for P1.5-9.
-7. **Analyte scope** — Anexo 2 requests more than Variables lists. Which enter the analysis?
-8. **Design label** — the protocol calls the design both quasi-experimental and *caso-control* in the same line. Those are different things, and with a prospective intervention it is not case-control.
-9. **Calendar** — the protocol has recruitment running August–September 2026 and the protocol has not reached the Comité de Ética. The dates need to move deliberately rather than by discovery.
+6. **Allocation rule** — ✅ **RESOLVED 2026-08-30.** Jc handles allocation manually through admin panel. Admin panel needs capability to assign/change arm.
+7. **Analyte scope** — ✅ **RESOLVED 2026-08-30.** Current set is sufficient; more will be added in the future as needed.
+8. ~~**Design label**~~ — **Dropped 2026-08-30.** Not the app's concern.
+9. **Calendar** — ✅ **RESOLVED 2026-08-30.** On hold until thesis presentation gets feedback and Alfredo handles ethics committee. No app-side action needed.
 
 ---
 
@@ -1050,9 +1050,9 @@ Consolidated, ranked by how much rework each causes if answered late.
 
 | Task | What | Effort | Needs Alfredo? | Status |
 |------|------|--------|----------------|--------|
-| P2-10 | Escalation alerts — dangerous reading → push notif + alert → "ir a guardia de urgencias" | Half day | No — answered 2026-08-22 | ✅ Done |
+| P2-10 | Escalation alerts — dangerous reading → push notif + alert → "ir a guardia de urgencias" + doctor push/email on critical/emergency | Half day | No — answered 2026-08-22 | ✅ Done (doctor notifications added 2026-08-30) |
 | P0.5-2 | Processor inventory — document every service touching patient data | 1 hour | **Yes — confirm receipt for ethics** | ✅ Done |
-| P1.5-2 | Caregiver role — record companion/carer at enrollment | 1 day | **Yes — login scope** | Blocked |
+| P1.5-2 | ~~Caregiver role~~ | — | — | Dropped 2026-08-30 — no special login/role for caregivers |
 | P2-4a | Firebase/FCM setup — `google-services.json` + upload FCM key to Expo + new APK build | 1 hour + Firebase console | No | ✅ Done |
 | Dress rehearsal | 5 fake participants, scheduler 1 week | Half day + 1 week | No | Not started |
 
@@ -1060,7 +1060,7 @@ Consolidated, ranked by how much rework each causes if answered late.
 
 | Task | What | Effort | Needs Alfredo? | Status |
 |------|------|--------|----------------|--------|
-| P2-11 | Glucemia reminder push notifs — 3 daily (ayunas/post-almuerzo/pre-cena), skip if logged | Half day | No — answered 2026-08-22 | ✅ Done |
+| P2-11 | Glucemia reminder push notifs — 3 daily at 7:00/14:00/19:00 ART (ayunas/post-almuerzo/pre-cena), skip if logged. Cron script `scripts/run-scheduler.sh` every 5 min triggers `POST /api/internal/scheduler` which also runs batch alert checks (inactivity + persistent criticals). | Half day | No — answered 2026-08-22 | ✅ Done (cron + batch alerts wired 2026-08-30) |
 | P3-9 | Consent step in onboarding — data processors, checkbox, timestamp in DB | 2-3 hours | No — answered 2026-08-22 | ✅ Done |
 | P3-6 | Accessibility pass — large text, contrast, 44px targets | 1-2 days | No | ✅ Done |
 | P3-7 | Onboarding flow — guided first-run logging one reading | 1 day | No | ✅ Done |
@@ -1099,6 +1099,12 @@ Consolidated, ranked by how much rework each causes if answered late.
 | AF-10 | Testear todos los formularios | Full QA pass on every form in web + mobile — validate inputs, error states, edge cases. |
 | AF-11 | Verificar onboarding no repite si ya completado | Confirm that a user who already completed onboarding doesn't get sent through it again (SecureStore check). |
 | AF-12 | Verificar "Descargar mis datos" funciona | Test the data export/download feature end-to-end on both web and mobile. |
+| AF-13 | Antecedentes en onboarding mobile | Port the web's 3-step medical history form (family history, personal history, medications) into the mobile onboarding flow. API exists (`POST /api/medical-history`). Add as step 3 after name, with internal sub-steps. |
+| AF-14 | Gráficos del doctor por paciente (mobile) | Doctor's VitalsTab only shows lists — reuse patient `MeasurementCharts` component so doctors see glucemia + BP trend charts per patient. |
+| AF-15 | Doctor sube archivos de laboratorio + análisis IA | Doctor uploads lab report (PDF/image) for a patient → Gemini Vision extracts structured results → stored as lab data. Extends existing LabResultsPanel + Cloudinary upload. |
+| AF-16 | Mejorar sincronización doctor-paciente | Broader sync improvements: doctor notifications on patient data, activity feed, shared notes per measurement. Scope TBD. |
+| AF-17 | IA genera mensajes push + panel de aprobación | Gemini generates nutritional/exercise tip messages as push notifications. Admin/doctor approval panel before sending. Leverages existing `message_templates` schema (has `approved_by_doctor`, `approved_at`), `message_generations` for AI traceability. Must respect arm gate — control never receives intervention messages. |
+| AF-18 | Landing page (glyco.fit) | Public-facing landing website for GlycoFit. Target audience: patients with diabetes tipo 2, their families, and medical professionals. Framing: medical app that bridges doctor-patient communication for elderly diabetic patients — NOT a research tool. Sections: hero with value prop (monitoreo + comunicación médica), how it works (3-step: registrá → compartí → mejorá), features overview (glucose/BP tracking, doctor connection, reminders, AI tips), target patients, privacy/data summary, download/contact CTA, footer with privacy policy link. Hosted on same Next.js app as public route (no auth). Spanish only. Accessible design (large fonts, high contrast) for elderly demographic. |
 
 ---
 
@@ -1128,3 +1134,4 @@ Consolidated, ranked by how much rework each causes if answered late.
 | 2.9 | 2026-08-22 | Completed P2-11 (glucemia reminder push notifs — 3 daily cron rules: fasting 7:00, postprandial 14:30, pre-dinner 19:30 Argentina time, skip if already logged, intervention arm only). Added measurement_context param to scheduler for per-context dedup. Scheduler now resolves patient first_name for {{nombre}}. Completed P2-10 (escalation alerts — emergency readings trigger immediate push notification + in-app alert with ER instruction). Emergency thresholds: glucose <54 or ≥200/300, BP >180/120. Full-screen red EmergencyModal with vibration on mobile. Recorded Alfredo's decisions: escalation policy, consent in onboarding, message schedule. |
 | 3.0 | 2026-08-24 | Completed P3-9 (consent step in onboarding). Migration adds `consent_accepted_at` to patients table. `POST /api/auth/consent` endpoint records timestamp (idempotent — only sets if NULL). Mobile onboarding expanded from 4 to 5 steps: consent (step 1) → name → glucose → notifications → features. Consent step lists data purposes (monitoring, medical team, reminders, clinical study) and data processors (Firebase, Expo, Cloudinary, Gemini), requires checkbox acceptance. OTA deployed. |
 | 3.1 | 2026-08-24 | Invite-only registration. New `invite_codes` table with admin CRUD API (generate 6-char hex code, list, revoke unused). Registration API validates invite code before creating user; marks code as used after. Admin panel "Usuarios" tab has code generator with copy-to-clipboard and revoke. Web registration form requires invite code field. Mobile login screen hides register links, shows hint about needing an invite code from the medical team. Privacy policy page at `/privacy` — Ley 25.326 compliant, lists all data processors, user rights, contact info. Fixed unicode escape sequences in 3 mobile files (Presión, años, Género displayed as raw `\u00XX`). |
+| 3.2 | 2026-08-30 | Doctor notifications on dangerous readings: critical/emergency measurements now send push notification + email to all linked doctors (via `patient_doctor` table). New `doctorAlertEmailHtml()` template with red severity banner and "Ver panel de pacientes" CTA. Internal scheduler endpoint (`POST /api/internal/scheduler`) now also runs `checkInactivityAndCritical()` for batch alert checks (inactivity 7+ days, persistent unread criticals). Cron script `scripts/run-scheduler.sh` calls endpoint every 5 min. Migration updates reminder cron times to agreed schedule: fasting 7:00, postprandial 14:00, pre-dinner 19:00 ART. Plan cleanup: resolved open items 2/3/6/7/8/9 for Alfredo, dropped caregiver role, added AF-13 to AF-18 (antecedentes mobile, doctor charts, lab AI uploads, doctor-patient sync, AI push messages, landing page). Play Store strategy: medical app framing (not research), org account under monotributo with D-U-N-S. |

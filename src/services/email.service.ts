@@ -41,13 +41,36 @@ export async function sendEmail({ to, subject, html }: SendEmailOptions) {
 export function alertEmailHtml(patientName: string, alertType: string, message: string) {
   return `
     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-      <h2 style="color: #16a34a; margin-bottom: 4px;">Glycofit</h2>
+      <h2 style="color: #16a34a; margin-bottom: 4px;">GlycoFit</h2>
       <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Tu salud, bajo control</p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
       <p style="color: #1f2937;">Hola <strong>${escapeHtml(patientName)}</strong>,</p>
       <p style="color: #1f2937;">${escapeHtml(message)}</p>
       <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
-        — Equipo Glycofit
+        — Equipo GlycoFit
+      </p>
+    </div>
+  `;
+}
+
+export function doctorAlertEmailHtml(doctorName: string, patientName: string, alertTitle: string, alertMessage: string) {
+  const appUrl = process.env.APP_URL || "https://glyco.fit";
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+      <h2 style="color: #16a34a; margin-bottom: 4px;">GlycoFit</h2>
+      <p style="color: #6b7280; font-size: 13px; margin-top: 0;">Alerta de paciente</p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;">
+      <p style="color: #1f2937;">Dr/a. <strong>${escapeHtml(doctorName)}</strong>,</p>
+      <p style="color: #1f2937;">Su paciente <strong>${escapeHtml(patientName)}</strong> registró un valor que requiere atención:</p>
+      <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 4px; margin: 16px 0;">
+        <p style="color: #991b1b; font-weight: 600; margin: 0 0 4px;">${escapeHtml(alertTitle.replace(/⚠️\s*/, ""))}</p>
+        <p style="color: #7f1d1d; margin: 0;">${escapeHtml(alertMessage)}</p>
+      </div>
+      <a href="${appUrl}/doctor" style="display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+        Ver panel de pacientes
+      </a>
+      <p style="color: #6b7280; font-size: 13px; margin-top: 24px;">
+        — Equipo GlycoFit
       </p>
     </div>
   `;

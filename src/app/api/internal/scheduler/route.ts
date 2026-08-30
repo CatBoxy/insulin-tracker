@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScheduler } from "@/services/messaging/scheduler";
+import { checkInactivityAndCritical } from "@/services/alerts.service";
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get("x-internal-key");
@@ -8,8 +9,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await runScheduler();
-    return NextResponse.json(result);
+    const [schedulerResult, alertsCreated] = await Promise.all([
+      runScheduler(),
+      checkInactivityAndCritical(),
+    ]);
+    return NextResponse.json({ scheduler: schedulerResult, alerts: alertsCreated });
   } catch (error) {
     console.error("Internal scheduler error:", error);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
